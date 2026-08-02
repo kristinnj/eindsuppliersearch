@@ -1,0 +1,19 @@
+.eind-suppliersearch-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.eind-suppliersearch-input-group {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.eind-suppliersearch-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.eind-suppliersearch-results .nav-tabs {
+    flex-wrap: wrap;
+}
