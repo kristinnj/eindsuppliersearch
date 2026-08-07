@@ -6,6 +6,7 @@
             initSearchFormProtection();
             initPaginationDropdowns();
             initAddToCartForms();
+            initImageZoom();
         }
 
         // The theme's own search-as-you-type JS listens for submits on any
@@ -227,6 +228,80 @@
                         submitButton.disabled = false;
                     }
                 });
+        }
+
+        // Hover-to-zoom overlay for product images (ported from apisearchmodule's
+        // product modal zoom). Unlike the old module, there's no host modal here --
+        // each wrapper gets its own overlay appended to <body>, shown/hidden by
+        // toggling a class so CSS can animate the zoom in/out. The overlay is
+        // built once per wrapper (not per hover) so that toggling is instant and
+        // the mouseleave listener on the popped-up dialog itself is what makes
+        // moving the cursor off it actually close it again.
+        function initImageZoom() {
+            var wrappers = document.querySelectorAll('.js-eind-image-zoom');
+
+            wrappers.forEach(function (wrapper) {
+                var imageSrc = wrapper.getAttribute('data-image-src') || '';
+                if (!imageSrc) {
+                    return;
+                }
+                var imageAlt = wrapper.getAttribute('data-image-alt') || 'Product image';
+
+                var overlay = document.createElement('div');
+                overlay.className = 'eind-image-zoom-modal';
+
+                var dialog = document.createElement('div');
+                dialog.className = 'eind-image-zoom-modal__dialog';
+
+                var img = document.createElement('img');
+                img.className = 'eind-image-zoom-img';
+                img.src = imageSrc;
+                img.alt = imageAlt;
+
+                dialog.appendChild(img);
+                overlay.appendChild(dialog);
+                document.body.appendChild(overlay);
+
+                function isWithinZoom(target) {
+                    return !!target && (wrapper.contains(target) || overlay.contains(target));
+                }
+
+                function showOverlay() {
+                    // dialog.offsetWidth/Height are measurable even while the
+                    // overlay is visibility:hidden, since that (unlike
+                    // display:none) keeps the box in the layout tree.
+                    var margin = 10;
+                    var rect = wrapper.getBoundingClientRect();
+                    var viewportWidth = document.documentElement.clientWidth;
+                    var viewportHeight = document.documentElement.clientHeight;
+                    var dialogWidth = dialog.offsetWidth;
+                    var dialogHeight = dialog.offsetHeight;
+
+                    // left/transform:translateX(-50%) together mean "left" is the
+                    // dialog's horizontal CENTER, not its edge -- clamp so the
+                    // actual left/right edges stay within the viewport.
+                    var minLeft = margin + dialogWidth / 2;
+                    var maxLeft = Math.max(minLeft, viewportWidth - margin - dialogWidth / 2);
+                    var desiredLeft = rect.left + rect.width / 2;
+                    dialog.style.left = Math.min(Math.max(desiredLeft, minLeft), maxLeft) + 'px';
+
+                    var maxTop = Math.max(margin, viewportHeight - margin - dialogHeight);
+                    dialog.style.top = Math.min(Math.max(rect.top, margin), maxTop) + 'px';
+
+                    overlay.classList.add('is-visible');
+                }
+
+                function hideOverlay(event) {
+                    if (isWithinZoom(event && event.relatedTarget)) {
+                        return;
+                    }
+                    overlay.classList.remove('is-visible');
+                }
+
+                wrapper.addEventListener('mouseenter', showOverlay);
+                wrapper.addEventListener('mouseleave', hideOverlay);
+                dialog.addEventListener('mouseleave', hideOverlay);
+            });
         }
 
         return {

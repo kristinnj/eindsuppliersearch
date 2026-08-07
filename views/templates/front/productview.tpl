@@ -22,18 +22,23 @@
         <div class="row">
             <div class="col-12 col-md-5 mb-4">
                 {if isset($product.Images[0])}
-                    <div class="text-center">
+                    {assign var="eind_image_alt" value="`$product.ManufacturerPartNumber` - `$product.DisplayText`"}
+                    <div
+                        class="eind-detail-image-wrapper js-eind-image-zoom"
+                        data-image-src="{$product.Images[0].PrimaryURL}"
+                        data-image-alt="{$eind_image_alt|escape:'html'}"
+                    >
                         <img
                             src="{$product.Images[0].PrimaryURL}"
                             alt="{$product.ManufacturerPartNumber|escape:'html'}"
-                            title="{$product.ManufacturerPartNumber|escape:'html'} - {$product.DisplayText|escape:'html'}"
-                            class="img-fluid"
+                            title="{$eind_image_alt|escape:'html'}"
+                            class="eind-detail-image"
                         >
                     </div>
                     <p class="text-center text-muted small mt-2">{l s='Images are for reference only. See product description for details.' d='Modules.Eindsuppliersearch.Shop'}</p>
                 {else}
-                    <div class="text-center">
-                        <img src="{_MODULE_DIR_}eind_suppliersearch/views/images/No_image.jpg" alt="{l s='No image available' d='Shop.Theme.Catalog'}" class="img-fluid">
+                    <div class="eind-detail-image-wrapper">
+                        <img src="{_MODULE_DIR_}eind_suppliersearch/views/images/No_image.jpg" alt="{l s='No image available' d='Shop.Theme.Catalog'}" class="eind-detail-image">
                     </div>
                 {/if}
             </div>

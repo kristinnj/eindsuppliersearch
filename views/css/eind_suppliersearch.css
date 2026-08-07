@@ -17,3 +17,62 @@
 .eind-suppliersearch-results .nav-tabs {
     flex-wrap: wrap;
 }
+
+.eind-detail-image-wrapper {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background-color: var(--bs-body-bg, #f8f9fa);
+    border-radius: 0.5rem;
+    cursor: zoom-in;
+}
+
+.eind-detail-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.eind-image-zoom-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1065;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.eind-image-zoom-modal.is-visible {
+    visibility: visible;
+}
+
+.eind-image-zoom-modal__dialog {
+    position: fixed;
+    left: 50%;
+    width: auto;
+    max-width: 95vw;
+    max-height: 90vh;
+    padding: 0.75rem;
+    pointer-events: auto;
+    background-color: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateX(-50%) scale(0.92);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.eind-image-zoom-modal.is-visible .eind-image-zoom-modal__dialog {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+.eind-image-zoom-img {
+    display: block;
+    width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
