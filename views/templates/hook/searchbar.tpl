@@ -9,7 +9,7 @@
       id="eind-suppliersearch-form"
       class="eind-suppliersearch-form"
       method="get"
-      action="{$link->getModuleLink('eind_suppliersearch', 'searchresults')|escape:'htmlall':'UTF-8'}"
+      action="{$link->getModuleLink('eindsuppliersearch', 'searchresults')|escape:'htmlall':'UTF-8'}"
       role="search"
     >
       <input type="hidden" name="api_submit" value="search">

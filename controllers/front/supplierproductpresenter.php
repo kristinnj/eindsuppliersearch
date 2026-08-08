@@ -8,7 +8,7 @@ use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
 use PrestaShop\PrestaShop\Core\Product\ProductPresentationSettings;
 
-require_once _PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/addtocartfunctions.php';
+require_once _PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addtocartfunctions.php';
 
 /**
  * Feeds supplier search results through PrestaShop's own ProductListingPresenter
@@ -93,7 +93,7 @@ class EindSupplierProductPresenter
             ?? $standardProduct['Images'][0]['SecondaryURL']
             ?? '';
         $presented['eind_detail_url'] = Context::getContext()->link->getModuleLink(
-            'eind_suppliersearch',
+            'eindsuppliersearch',
             'productview',
             [
                 'supplierId' => $supplierId,

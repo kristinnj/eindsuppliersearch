@@ -19,7 +19,7 @@ class EindApiDatabase
             return false;
         }
         $db = Db::getInstance();
-        $tableName = _DB_PREFIX_ . pSQL(Eind_SupplierSearch::SEARCH_RESULTS_TABLE);
+        $tableName = _DB_PREFIX_ . pSQL(Eindsuppliersearch::SEARCH_RESULTS_TABLE);
 
         $safeJson = $db->escape($json_data, true);
         $sql = 'INSERT INTO ' . $tableName . ' (session_id, created_at, product_list)
@@ -34,7 +34,7 @@ class EindApiDatabase
     public function getProductListBySessionId($api_session_id)
     {
         $db = Db::getInstance();
-        $tableName = _DB_PREFIX_ . pSQL(Eind_SupplierSearch::SEARCH_RESULTS_TABLE);
+        $tableName = _DB_PREFIX_ . pSQL(Eindsuppliersearch::SEARCH_RESULTS_TABLE);
 
         $row = $db->getRow(
             'SELECT product_list FROM ' . $tableName . ' WHERE session_id = \'' . $db->escape($api_session_id) . '\''

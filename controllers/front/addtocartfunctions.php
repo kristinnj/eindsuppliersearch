@@ -250,7 +250,7 @@ class EindAddToCartFunctions
     {
         $this->debugLog('1 getProductBySessionID; SessionID: ' . $sessionId . ', SupplierID: ' . $supplierId . ', Key - ' . $productKey);
 
-        $sql = 'SELECT product_list FROM ' . _DB_PREFIX_ . pSQL(Eind_SupplierSearch::SEARCH_RESULTS_TABLE) . ' WHERE session_id = \'' . pSQL($sessionId) . '\'';
+        $sql = 'SELECT product_list FROM ' . _DB_PREFIX_ . pSQL(Eindsuppliersearch::SEARCH_RESULTS_TABLE) . ' WHERE session_id = \'' . pSQL($sessionId) . '\'';
         $result = Db::getInstance()->getValue($sql);
         $this->debugLog('2 getProductBySessionId; $result: ' . print_r($result, true));
         if (!$result) {                                                                 // If there is no recort return false

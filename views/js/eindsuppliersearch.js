@@ -161,11 +161,11 @@
         }
 
         function addToCart(form) {
-            var url = typeof eind_suppliersearch_addToCartUrl !== 'undefined' ? eind_suppliersearch_addToCartUrl : null;
-            var token = typeof eind_suppliersearch_addToCartToken !== 'undefined' ? eind_suppliersearch_addToCartToken : null;
+            var url = typeof eindsuppliersearch_addToCartUrl !== 'undefined' ? eindsuppliersearch_addToCartUrl : null;
+            var token = typeof eindsuppliersearch_addToCartToken !== 'undefined' ? eindsuppliersearch_addToCartToken : null;
 
             if (!url) {
-                console.error('Missing eind_suppliersearch_addToCartUrl');
+                console.error('Missing eindsuppliersearch_addToCartUrl');
                 return;
             }
 

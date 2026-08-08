@@ -2,7 +2,7 @@
 
 /* callsupplierapi.php */
 
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/jsontoarray.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/jsontoarray.php');
 
 class EindCallSupplierApi
 {
@@ -113,7 +113,7 @@ class EindCallSupplierApi
     public function getAllApiSuppliers() {
         // Get all the available suppliers that offer search API
         $this->logDebug('EindCallSupplierApi->getAllApiSuppliers called');
-        $module = Module::getInstanceByName('eind_suppliersearch');                      // Get the name of the table that stores the list of API services
+        $module = Module::getInstanceByName('eindsuppliersearch');                      // Get the name of the table that stores the list of API services
         $tableName = _DB_PREFIX_.pSQL($module->supplier_table);
 
         $sql = 'SELECT * FROM `' . $tableName . '`';                                // Get all the records from the Db table

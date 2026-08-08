@@ -42,13 +42,13 @@
                                             {/foreach}
                                         </select>
                                     </form>
-                                    <form method="get" action="{$link->getModuleLink('eind_suppliersearch', 'searchresults')}">
+                                    <form method="get" action="{$link->getModuleLink('eindsuppliersearch', 'searchresults')}">
                                         <input name="supplierId" value="{$supplierId}" type="hidden">
                                         <input name="submit_search" value="previous" type="hidden">
                                         <button type="submit" class="btn btn-sm btn-outline-secondary"{if !$supplierData.HasPreviousPage} disabled{/if}>&laquo; {l s='Previous' d='Modules.Eindsuppliersearch.Shop'}</button>
                                     </form>
                                     <span>{l s='Page %current% of %total%' sprintf=['%current%' => $supplierData.CurrentPage, '%total%' => $supplierData.NumberOfPages|number_format:0:',':'.'] d='Modules.Eindsuppliersearch.Shop'}</span>
-                                    <form method="get" action="{$link->getModuleLink('eind_suppliersearch', 'searchresults')}">
+                                    <form method="get" action="{$link->getModuleLink('eindsuppliersearch', 'searchresults')}">
                                         <input name="supplierId" value="{$supplierId}" type="hidden">
                                         <input name="submit_search" value="next" type="hidden">
                                         <input name="totalResults" value="{$supplierData.NumberOfResults}" type="hidden">
@@ -68,7 +68,7 @@
                             <div id="js-product-list">
                                 <div class="products">
                                     {foreach from=$supplierData.PresentedProducts item=product key=productKey}
-                                        {include file='module:eind_suppliersearch/views/templates/front/_partials/virtual-product-miniature.tpl' product=$product position=$productKey}
+                                        {include file='module:eindsuppliersearch/views/templates/front/_partials/virtual-product-miniature.tpl' product=$product position=$productKey}
                                     {/foreach}
                                 </div>
                             </div>

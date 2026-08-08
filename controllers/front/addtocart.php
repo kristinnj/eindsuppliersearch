@@ -7,9 +7,9 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once _PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/addtocartfunctions.php';
+require_once _PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addtocartfunctions.php';
 
-class Eind_SuppliersearchAddToCartModuleFrontController extends ModuleFrontController
+class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontController
 {
     /**
      * @var EindAddToCartFunctions

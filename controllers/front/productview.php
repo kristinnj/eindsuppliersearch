@@ -2,7 +2,7 @@
 
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/addtocartfunctions.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addtocartfunctions.php');
 
 /**
  * Virtual detail page for a supplier search result that isn't a real
@@ -10,7 +10,7 @@ require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/add
  * core's catalog/product.tpl, which assumes a fully catalogued product with
  * combinations/reviews/etc. that a not-yet-imported item can't provide).
  */
-class Eind_SuppliersearchProductViewModuleFrontController extends ModuleFrontController
+class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontController
 {
     public function initContent()
     {
@@ -37,18 +37,18 @@ class Eind_SuppliersearchProductViewModuleFrontController extends ModuleFrontCon
             'eind_product' => $product,
             'eind_supplier_id' => $supplierId,
             'eind_product_key' => $productKey,
-            'eind_back_url' => $this->context->link->getModuleLink('eind_suppliersearch', 'searchresults'),
+            'eind_back_url' => $this->context->link->getModuleLink('eindsuppliersearch', 'searchresults'),
         ]);
 
         if ($product) {
             Media::addJsDef([
-                'eind_suppliersearch_addToCartUrl' =>
-                    $this->context->link->getModuleLink('eind_suppliersearch', 'addtocart', [], null, null, null, false, false),
-                'eind_suppliersearch_addToCartToken' => Tools::getToken(false),
+                'eindsuppliersearch_addToCartUrl' =>
+                    $this->context->link->getModuleLink('eindsuppliersearch', 'addtocart', [], null, null, null, false, false),
+                'eindsuppliersearch_addToCartToken' => Tools::getToken(false),
             ]);
         }
 
-        $this->setTemplate('module:eind_suppliersearch/views/templates/front/productview.tpl');
+        $this->setTemplate('module:eindsuppliersearch/views/templates/front/productview.tpl');
     }
 
     /**

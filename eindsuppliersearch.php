@@ -3,7 +3,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class Eind_SupplierSearch extends Module
+class Eindsuppliersearch extends Module
 {
     public const SEARCH_RESULTS_TABLE = 'eind_search_results';
     public const SUPPLIER_TABLE = 'eind_search_suppliers';
@@ -14,7 +14,7 @@ class Eind_SupplierSearch extends Module
 
     public function __construct()
     {
-        $this->name = 'eind_suppliersearch';
+        $this->name = 'eindsuppliersearch';
         $this->tab = 'front_office_features';
         $this->version = '1.0.0';
         $this->author = 'Kristinn Johannesson';
@@ -385,7 +385,7 @@ class Eind_SupplierSearch extends Module
             'searchData' => $searchData
         ));
         Media::addJsDef([
-            'eind_suppliersearch_search_url' => $this->context->link->getModuleLink($this->name, 'searchresults')
+            'eindsuppliersearch_search_url' => $this->context->link->getModuleLink($this->name, 'searchresults')
         ]);
         return $this->display(__FILE__, 'views/templates/hook/searchbar.tpl');
     }
@@ -394,7 +394,7 @@ class Eind_SupplierSearch extends Module
     {
         $this->context->controller->registerStylesheet(
             'eind-suppliersearch-style',
-            'modules/' . $this->name . '/views/css/eind_suppliersearch.css',
+            'modules/' . $this->name . '/views/css/eindsuppliersearch.css',
             [
                 'media' => 'all',
                 'priority' => 1000,
@@ -403,7 +403,7 @@ class Eind_SupplierSearch extends Module
 
         $this->context->controller->registerJavascript(
             'eind-suppliersearch-javascript',
-            'modules/' . $this->name . '/views/js/eind_suppliersearch.js',
+            'modules/' . $this->name . '/views/js/eindsuppliersearch.js',
             [
                 'position' => 'bottom',
                 'priority' => 1000,

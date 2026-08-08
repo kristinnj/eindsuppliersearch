@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
-    <name>eind_suppliersearch</name>
+    <name>eindsuppliersearch</name>
     <displayName><![CDATA[EIND Supplier Search]]></displayName>
     <version><![CDATA[1.0.0]]></version>
     <description><![CDATA[Search products from external supplier APIs and display them like native catalog products.]]></description>

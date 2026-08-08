@@ -1,11 +1,11 @@
 <?php
 
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/addtocartfunctions.php');
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/callsupplierapi.php');
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/apidatabase.php');
-require_once(_PS_ROOT_DIR_ . '/modules/eind_suppliersearch/controllers/front/supplierproductpresenter.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addtocartfunctions.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/callsupplierapi.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/apidatabase.php');
+require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/supplierproductpresenter.php');
 
-class Eind_SuppliersearchSearchResultsModuleFrontController extends ModuleFrontController
+class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontController
 {
     public function initContent()
     {
@@ -246,7 +246,7 @@ class Eind_SuppliersearchSearchResultsModuleFrontController extends ModuleFrontC
                 'search_results' => $searchError,
                 'currency' => $this->context->currency,
             ]);
-            $this->setTemplate('module:eind_suppliersearch/views/templates/front/searchresults.tpl');
+            $this->setTemplate('module:eindsuppliersearch/views/templates/front/searchresults.tpl');
 
             return;
         }
@@ -279,9 +279,9 @@ class Eind_SuppliersearchSearchResultsModuleFrontController extends ModuleFrontC
         $this->assignPresentedProducts($searchResults);
 
         Media::addJsDef([
-            'eind_suppliersearch_addToCartUrl' =>
-                $this->context->link->getModuleLink('eind_suppliersearch', 'addtocart', [], null, null, null, false, false),
-            'eind_suppliersearch_addToCartToken' => Tools::getToken(false),
+            'eindsuppliersearch_addToCartUrl' =>
+                $this->context->link->getModuleLink('eindsuppliersearch', 'addtocart', [], null, null, null, false, false),
+            'eindsuppliersearch_addToCartToken' => Tools::getToken(false),
         ]);
 
         $this->context->smarty->assign([
@@ -290,7 +290,7 @@ class Eind_SuppliersearchSearchResultsModuleFrontController extends ModuleFrontC
             'currency' => $this->context->currency,
         ]);
 
-        $this->setTemplate('module:eind_suppliersearch/views/templates/front/searchresults.tpl');
+        $this->setTemplate('module:eindsuppliersearch/views/templates/front/searchresults.tpl');
     }
 
     /**

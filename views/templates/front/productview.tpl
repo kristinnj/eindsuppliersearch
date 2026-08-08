@@ -38,7 +38,7 @@
                     <p class="text-center text-muted small mt-2">{l s='Images are for reference only. See product description for details.' d='Modules.Eindsuppliersearch.Shop'}</p>
                 {else}
                     <div class="eind-detail-image-wrapper">
-                        <img src="{_MODULE_DIR_}eind_suppliersearch/views/images/No_image.jpg" alt="{l s='No image available' d='Shop.Theme.Catalog'}" class="eind-detail-image">
+                        <img src="{_MODULE_DIR_}eindsuppliersearch/views/images/No_image.jpg" alt="{l s='No image available' d='Shop.Theme.Catalog'}" class="eind-detail-image">
                     </div>
                 {/if}
             </div>
