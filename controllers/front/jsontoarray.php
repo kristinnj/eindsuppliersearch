@@ -107,8 +107,10 @@ class EindConvertJsonToProductArray
         // Use the product format to read the supplier data
         $productFormat = $supplierFormat["Products"];
 
-        // Get the products array from the data
-        $supplierProducts = $data[$searchReturnKey][$productFormat["ColumnName"]];
+        // Get the products array from the data. Some suppliers (e.g. Element14/
+        // Farnell) omit this key entirely when there are zero results instead of
+        // returning an empty array, so this can't be a plain array access.
+        $supplierProducts = $data[$searchReturnKey][$productFormat["ColumnName"]] ?? [];
 
         // Get the currency rate to convert prices from supplier's to customer's selected currency
         $defaultCurrencyId = (int) Configuration::get('PS_CURRENCY_DEFAULT');
