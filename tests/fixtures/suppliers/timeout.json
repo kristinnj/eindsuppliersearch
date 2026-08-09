@@ -1,0 +1,3 @@
+{
+    "note": "JsonFixtureSupplierProvider throws SupplierTimeoutException for the TIMEOUT scenario before this file is ever read. It exists so the scenario has a real file on disk, matching the others."
+}

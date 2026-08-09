@@ -5,13 +5,16 @@ require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/call
 require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/apidatabase.php');
 require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/supplierproductpresenter.php');
 
+use EindSupplierSearch\Domain\SearchQuery;
+use EindSupplierSearch\Factory\SupplierProviderResolver;
+use EindSupplierSearch\Service\SearchService;
+
 class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontController
 {
     public function initContent()
     {
         parent::initContent();
 
-        $callsupplierapi = new EindCallSupplierApi();
         $apidatabase = new EindApiDatabase();
 
         $cookie = $this->context->cookie;
@@ -33,7 +36,28 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
         $history = [];
         $useCachedResults = false;
 
+        // PrestaShop's currency switcher does a full-page GET reload of whatever
+        // URL the shopper was on (core's Tools::setCurrency() reads
+        // SubmitCurrency/id_currency but never redirects), which replays that
+        // URL's leftover action params (submit_search=next, api_submit=search,
+        // ...) as if they were a brand-new user action -- silently advancing
+        // pagination again, or wiping the query on a plain revisit with no
+        // api_search_query. A currency change isn't a search action: redisplay
+        // the results already stored for this session instead, so prices get
+        // re-presented (and correctly converted, see EindSupplierProductPresenter)
+        // in the new currency without otherwise touching search state.
+        if (Tools::isSubmit('SubmitCurrency')) {
+            $useCachedResults = true;
+            $searchAction = 'currencyChange';
+        }
+
         switch ($searchAction) {
+            case "currencyChange":
+                // No-op: cookie/search state is left exactly as it was: only
+                // the currency changed, so nothing about the search itself
+                // (query, page, filters) should change.
+                break;
+
             case "search":
                 $cookie->eind_query = Tools::getValue('api_search_query');
                 $cookie->eind_pageOffset = (int) 1;
@@ -235,7 +259,13 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
                 $searchResults = [];
             }
         } else {
-            $searchResults = $callsupplierapi->querySuppliers($cookie->eind_query, $cookie->eind_itemsOnPage, $cookie->eind_pageOffset, $cookie->eind_searchTerm, $cookie->eind_searchFilter);
+            $searchResults = $this->runSearch(
+                $cookie->eind_query,
+                (int) $cookie->eind_itemsOnPage,
+                (int) $cookie->eind_pageOffset,
+                $cookie->eind_searchTerm,
+                $cookie->eind_searchFilter
+            );
         }
 
         if ($searchResults === false || empty($searchResults)) {
@@ -291,6 +321,26 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
         ]);
 
         $this->setTemplate('module:eindsuppliersearch/views/templates/front/searchresults.tpl');
+    }
+
+    /**
+     * Resolves the configured supplier provider (live API or JSON fixtures,
+     * see SupplierProviderResolver) and runs the search through it via
+     * SearchService, returning the same supplier-id-keyed array shape
+     * EindCallSupplierApi::querySuppliers() used to return directly.
+     */
+    private function runSearch(string $criteria, int $itemsOnPage, int $pageOffset, string $searchTerm, string $searchFilter): array
+    {
+        $searchQuery = SearchQuery::fromLegacyParameters($criteria, $itemsOnPage, $pageOffset, $searchTerm, $searchFilter);
+
+        $searchService = new SearchService(
+            SupplierProviderResolver::forModule()->resolve(),
+            static function (string $message, int $severity): void {
+                PrestaShopLogger::addLog('[EindSupplierSearch] ' . $message, $severity);
+            }
+        );
+
+        return $searchService->search($searchQuery)->toLegacyArray();
     }
 
     /**

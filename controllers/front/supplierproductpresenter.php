@@ -117,11 +117,13 @@ class EindSupplierProductPresenter
             return null;
         }
 
+        $price = $this->convertToCurrentCurrency((float) $product->price);
+
         return [
             'id_product' => (int) $product->id,
             'id_product_attribute' => 0,
             'name' => $product->name,
-            'price' => (float) $product->price,
+            'price' => $price,
             'id_image' => null,
             'link_rewrite' => $product->link_rewrite,
             'id_supplier' => (int) $product->id_supplier,
@@ -145,7 +147,7 @@ class EindSupplierProductPresenter
             'available_for_order' => (int) $product->available_for_order,
             'show_price' => true,
             'minimal_quantity' => 1,
-        ] + $this->pricingDefaults((float) $product->price);
+        ] + $this->pricingDefaults($price);
     }
 
     /**
@@ -159,7 +161,9 @@ class EindSupplierProductPresenter
         $languages = Language::getLanguages(false);
 
         $name = (string) ($standardProduct['DisplayText'] ?? $standardProduct['ProductName'] ?? $standardProduct['OrderCode'] ?? 'Unknown');
-        $price = isset($standardProduct['Prices'][0]['LocalPrice']) ? (float) $standardProduct['Prices'][0]['LocalPrice'] : 0.0;
+        $price = isset($standardProduct['Prices'][0]['LocalPrice'])
+            ? $this->convertToCurrentCurrency((float) $standardProduct['Prices'][0]['LocalPrice'])
+            : 0.0;
         $quantity = isset($standardProduct['Stock']['Level']) ? (int) $standardProduct['Stock']['Level'] : 0;
         $reference = (string) ($standardProduct['ManufacturerPartNumber'] ?? '');
         $rewriteBase = Tools::str2url($name !== '' ? $name : 'product');
@@ -194,6 +198,19 @@ class EindSupplierProductPresenter
             'show_price' => true,
             'minimal_quantity' => $this->toPositiveInt($standardProduct['MinimumOrderQty'] ?? null, 1),
         ] + $this->pricingDefaults($price);
+    }
+
+    /**
+     * Supplier/local product prices are stored in the shop's default currency;
+     * ProductListingLazyArray only formats whatever 'price' it's given, it
+     * does not itself apply the currency exchange rate (that's baked into the
+     * SQL for real catalog listings, which this raw-array path bypasses).
+     * Without this conversion, switching currencies would relabel the price
+     * with a new symbol without actually changing the number.
+     */
+    private function convertToCurrentCurrency(float $price): float
+    {
+        return (float) Tools::convertPrice($price, Context::getContext()->currency);
     }
 
     /**

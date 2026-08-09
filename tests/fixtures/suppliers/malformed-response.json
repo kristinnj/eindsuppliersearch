@@ -1,0 +1,9 @@
+{
+    "SupplierName": "Fixture Supplier (dev)",
+    "NumberOfResults": 1,
+    "Products": [
+        {
+            "OrderCode": "FX-0000000",
+            "ProductName": "Deliberately truncated fixture used by the MALFORMED_RESPONSE scenario"
+        },
+    ]

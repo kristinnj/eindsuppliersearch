@@ -3,10 +3,50 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+/*
+ * Deliberately NOT requiring vendor/autoload.php here. Composer's generated
+ * loader registers itself with $loader->register(true) -- prepended ahead
+ * of PrestaShop core's own autoloader in the shared SPL autoload queue --
+ * and this module's composer.json pulls in PHPUnit (a dev-only dependency)
+ * which requires nikic/php-parser ^5, while PrestaShop core itself bundles
+ * nikic/php-parser v4.x. Loading vendor/autoload.php on a live request lets
+ * the prepended module autoloader shadow core's copy for every request,
+ * breaking core code (e.g. ModuleDataProvider) that calls the v4-only
+ * PhpParser\ParserFactory::create() API.
+ *
+ * This module's src/ classes have no Composer dependencies of their own, so
+ * a minimal hand-rolled PSR-4 autoloader is sufficient here and avoids the
+ * conflict entirely. vendor/autoload.php (with PHPUnit and its full
+ * dependency tree) is only ever required by tests/bootstrap.php, in the
+ * separate, short-lived PHPUnit CLI process -- never by the web server.
+ */
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'EindSupplierSearch\\';
+    if (strncmp($prefix, $class, strlen($prefix)) !== 0) {
+        return;
+    }
+
+    $relative = substr($class, strlen($prefix));
+    $file = __DIR__ . '/src/' . str_replace('\\', '/', $relative) . '.php';
+
+    if (is_file($file)) {
+        require $file;
+    }
+});
+
 class Eindsuppliersearch extends Module
 {
     public const SEARCH_RESULTS_TABLE = 'eind_search_results';
     public const SUPPLIER_TABLE = 'eind_search_suppliers';
+
+    // Kept as plain string constants (rather than depending on
+    // EindSupplierSearch\Factory\SupplierProviderResolver) so the admin
+    // config form works even before `composer install` has been run for
+    // the module; SupplierProviderResolver reads the same config key.
+    public const API_MODE_CONFIG_KEY = 'EIND_SUPPLIERSEARCH_API_MODE';
+    public const API_MODE_LIVE = 'live';
+    public const API_MODE_FIXTURE = 'fixture';
+
     private const SEARCH_COOKIE_TTL = 86400; // 24 hours
 
     public $list_table;
@@ -43,7 +83,8 @@ class Eindsuppliersearch extends Module
             $this->registerOptionalHook('displayNavSearchBlock') &&
             $this->registerOptionalHook('displayMobileSearchBlock') &&
             $this->registerHook('displayLeftColumn') &&
-            $this->registerHook('actionFrontControllerSetMedia');
+            $this->registerHook('actionFrontControllerSetMedia') &&
+            Configuration::updateValue(self::API_MODE_CONFIG_KEY, self::API_MODE_LIVE);
     }
 
     private function installListDb()
@@ -113,12 +154,22 @@ class Eindsuppliersearch extends Module
             $this->unregisterHook('displaySearch') &&
             $this->unregisterOptionalHook('displayMobileSearchBlock') &&
             $this->unregisterHook('displayLeftColumn') &&
-            $this->unregisterHook('actionFrontControllerSetMedia');
+            $this->unregisterHook('actionFrontControllerSetMedia') &&
+            Configuration::deleteByName(self::API_MODE_CONFIG_KEY);
     }
 
     public function getContent()
     {
         $output = '';
+
+        if (Tools::isSubmit('submit_eind_api_mode')) {
+            $apiMode = Tools::getValue('eind_api_mode');
+            if (!in_array($apiMode, [self::API_MODE_LIVE, self::API_MODE_FIXTURE], true)) {
+                $apiMode = self::API_MODE_LIVE;
+            }
+            Configuration::updateValue(self::API_MODE_CONFIG_KEY, $apiMode);
+            $output .= $this->displayConfirmation($this->l('Supplier data source updated.'));
+        }
 
         if (Tools::isSubmit('submit_add_supplier_api')) {
             $supplierId = (int) Tools::getValue('supplier_id');
@@ -194,8 +245,50 @@ class Eindsuppliersearch extends Module
         $editSupplierId = (int) Tools::getValue('edit_supplier_id');
 
         return $output
+            . $this->renderApiModeForm()
             . $this->renderSupplierApiForm($editSupplierId)
             . $this->renderSupplierApiList();
+    }
+
+    /**
+     * Selects whether searches run against the live supplier API or local
+     * JSON fixtures (see EindSupplierSearch\Factory\SupplierProviderResolver).
+     * Purely a configuration switch -- no code change needed to flip modes.
+     */
+    protected function renderApiModeForm()
+    {
+        $currentMode = Configuration::get(self::API_MODE_CONFIG_KEY);
+        if (!in_array($currentMode, [self::API_MODE_LIVE, self::API_MODE_FIXTURE], true)) {
+            $currentMode = self::API_MODE_LIVE;
+        }
+
+        $fieldsForm = [
+            'form' => [
+                'legend' => [
+                    'title' => $this->l('Supplier Data Source'),
+                    'icon' => 'icon-exchange',
+                ],
+                'input' => [
+                    ['type' => 'select', 'label' => $this->l('Mode'), 'name' => 'eind_api_mode',
+                        'options' => ['query' => [
+                            ['id_option' => self::API_MODE_LIVE, 'name' => $this->l('Live supplier API')],
+                            ['id_option' => self::API_MODE_FIXTURE, 'name' => $this->l('Local JSON fixtures (development/testing)')],
+                        ], 'id' => 'id_option', 'name' => 'name'],
+                        'hint' => $this->l('Fixture mode never makes network calls; use it for development and automated testing.'),
+                    ],
+                ],
+                'submit' => ['title' => $this->l('Save'), 'name' => 'submit_eind_api_mode'],
+            ],
+        ];
+
+        $helper = new HelperForm();
+        $helper->module = $this;
+        $helper->name_controller = $this->name;
+        $helper->token = Tools::getAdminTokenLite('AdminModules');
+        $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
+        $helper->fields_value = ['eind_api_mode' => $currentMode];
+
+        return $helper->generateForm([$fieldsForm]);
     }
 
     protected function renderSupplierApiForm($editSupplierId = 0)
@@ -377,7 +470,13 @@ class Eindsuppliersearch extends Module
 
         $cookie = $this->context->cookie;
         $this->ensureSearchCookie($cookie, true);
-        $searchData["query"] = $cookie->eind_query;
+        // The search term is kept in the cookie so it survives pagination/back
+        // navigation *within* our own pages, but this hook renders the search
+        // bar on every page of the shop. Only repopulate the box with the
+        // stored term while the shopper is still looking at one of our own
+        // pages; anywhere else (home, category, cart, clicking the logo...)
+        // it should read as an empty, fresh search box.
+        $searchData["query"] = $this->isOnOwnFrontController() ? $cookie->eind_query : '';
         $searchData["inStock"] = (bool) $cookie->eind_inStock;
         $searchData["rohsCompliant"] = (bool) $cookie->eind_rohsCompliant;
 
@@ -388,6 +487,20 @@ class Eindsuppliersearch extends Module
             'eindsuppliersearch_search_url' => $this->context->link->getModuleLink($this->name, 'searchresults')
         ]);
         return $this->display(__FILE__, 'views/templates/hook/searchbar.tpl');
+    }
+
+    /**
+     * @return bool whether the page currently being rendered is one of this
+     *              module's own front controllers (searchresults, productview, ...)
+     */
+    private function isOnOwnFrontController(): bool
+    {
+        $controller = $this->context->controller;
+        if (!isset($controller->page_name)) {
+            return false;
+        }
+
+        return strpos((string) $controller->page_name, 'module-' . $this->name . '-') === 0;
     }
 
     public function hookActionFrontControllerSetMedia()

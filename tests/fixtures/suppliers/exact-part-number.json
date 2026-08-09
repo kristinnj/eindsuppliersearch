@@ -1,0 +1,65 @@
+{
+    "SupplierName": "Fixture Supplier (dev)",
+    "ItemsOnPage": 25,
+    "PageOffset": 1,
+    "NumberOfPages": 1,
+    "NumberOfResults": 1,
+    "ErrorsArray": false,
+    "TaxRate": 0.21,
+    "Products": [
+        {
+            "OrderCode": "FX-3312897",
+            "ProductName": "Vishay - RC0603FR-0710KL, Resistor 10K 0603 1%",
+            "DisplayText": "Resistor 10K 0603 1%, thick film, AEC-Q200",
+            "StockStatus": "In Stock",
+            "RohsCompliant": true,
+            "PacketSize": "5000",
+            "Unit": "Each",
+            "Images": [
+                {
+                    "PrimaryURL": "https://example.invalid/fixtures/rc0603fr-0710kl.jpg",
+                    "SecondaryURL": "",
+                    "ThumbNailURL": "https://example.invalid/fixtures/rc0603fr-0710kl-thumb.jpg"
+                }
+            ],
+            "Datasheets": [
+                {
+                    "SheetUrl": "https://example.invalid/fixtures/rc0603fr-0710kl.pdf",
+                    "SheetName": "Datasheet"
+                }
+            ],
+            "ProductInformation": {
+                "Description": ["Thick film chip resistor, 10 kOhm, 1% tolerance, 0603 package."]
+            },
+            "Prices": [
+                {
+                    "SupplierPrice": 0.0021,
+                    "ProductPrice": 0.0027,
+                    "From": 1,
+                    "LocalPrice": 0.0032,
+                    "LocalVATPrice": 0.0039
+                }
+            ],
+            "NumberInStock": 184320,
+            "ManufacturerName": "Vishay",
+            "ManufacturerLogo": "Unknown",
+            "BrandName": "Vishay",
+            "ManufacturerPartNumber": "RC0603FR-0710KL",
+            "MinimumOrderQty": 1,
+            "Attributes": [
+                {"Label": "Resistance", "Value": "10", "Unit": "kOhm"},
+                {"Label": "Tolerance", "Value": "1", "Unit": "%"},
+                {"Label": "Package", "Value": "0603", "Unit": ""}
+            ],
+            "Stock": {
+                "Level": 184320,
+                "Status": "In Stock"
+            },
+            "CountryOfOrigin": "Philippines",
+            "ImportTaxCode": "8533210000",
+            "OrderMultiples": 1,
+            "Package": "Cut Tape",
+            "Restriction": false
+        }
+    ]
+}

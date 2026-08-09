@@ -1,0 +1,46 @@
+{
+    "SupplierName": "Fixture Supplier (dev)",
+    "ItemsOnPage": 25,
+    "PageOffset": 1,
+    "NumberOfPages": 1,
+    "NumberOfResults": 1,
+    "ErrorsArray": false,
+    "TaxRate": 0.21,
+    "Products": [
+        {
+            "OrderCode": "FX-9012345",
+            "ProductName": "STMicroelectronics - STM32F103C8T6, Microcontroller 32-bit ARM Cortex-M3",
+            "DisplayText": "32-bit ARM Cortex-M3 microcontroller, 64KB flash, LQFP-48",
+            "StockStatus": "In Stock",
+            "RohsCompliant": true,
+            "PacketSize": "1",
+            "Unit": "Each",
+            "Images": [{"PrimaryURL": "https://example.invalid/fixtures/stm32f103c8t6.jpg", "SecondaryURL": "", "ThumbNailURL": ""}],
+            "Datasheets": [{"SheetUrl": "https://example.invalid/fixtures/stm32f103c8t6.pdf", "SheetName": "Datasheet"}],
+            "ProductInformation": {"Description": ["Mainstream performance line ARM Cortex-M3 MCU, 64K bytes of flash memory."]},
+            "Prices": [
+                {"SupplierPrice": 4.8, "ProductPrice": 6.15, "From": 1, "LocalPrice": 7.19, "LocalVATPrice": 8.7},
+                {"SupplierPrice": 4.2, "ProductPrice": 5.38, "From": 10, "LocalPrice": 6.29, "LocalVATPrice": 7.61},
+                {"SupplierPrice": 3.65, "ProductPrice": 4.68, "From": 100, "LocalPrice": 5.47, "LocalVATPrice": 6.62},
+                {"SupplierPrice": 3.1, "ProductPrice": 3.97, "From": 500, "LocalPrice": 4.64, "LocalVATPrice": 5.61},
+                {"SupplierPrice": 2.7, "ProductPrice": 3.46, "From": 1000, "LocalPrice": 4.04, "LocalVATPrice": 4.89}
+            ],
+            "NumberInStock": 5400,
+            "ManufacturerName": "STMicroelectronics",
+            "ManufacturerLogo": "Unknown",
+            "BrandName": "STMicroelectronics",
+            "ManufacturerPartNumber": "STM32F103C8T6",
+            "MinimumOrderQty": 1,
+            "Attributes": [
+                {"Label": "Core", "Value": "ARM Cortex-M3", "Unit": ""},
+                {"Label": "Flash Memory", "Value": "64", "Unit": "KB"}
+            ],
+            "Stock": {"Level": 5400, "Status": "In Stock"},
+            "CountryOfOrigin": "France",
+            "ImportTaxCode": "8542310000",
+            "OrderMultiples": 1,
+            "Package": "Tray",
+            "Restriction": false
+        }
+    ]
+}

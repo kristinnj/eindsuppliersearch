@@ -1,0 +1,53 @@
+{
+    "SupplierName": "Fixture Supplier (dev)",
+    "ItemsOnPage": 25,
+    "PageOffset": 1,
+    "NumberOfPages": 1,
+    "NumberOfResults": 1,
+    "ErrorsArray": false,
+    "TaxRate": 0.21,
+    "Products": [
+        {
+            "OrderCode": "FX-7741002",
+            "ProductName": "Texas Instruments - LM317MDT, Voltage Regulator 1.2-37V 0.5A",
+            "DisplayText": "Adjustable voltage regulator, 0.5A, DPAK",
+            "StockStatus": "In Stock",
+            "RohsCompliant": true,
+            "PacketSize": "75",
+            "Unit": "Each",
+            "Images": [
+                {
+                    "PrimaryURL": "https://example.invalid/fixtures/lm317mdt.jpg",
+                    "SecondaryURL": "",
+                    "ThumbNailURL": "https://example.invalid/fixtures/lm317mdt-thumb.jpg"
+                }
+            ],
+            "Datasheets": [
+                {"SheetUrl": "https://example.invalid/fixtures/lm317mdt.pdf", "SheetName": "Datasheet"}
+            ],
+            "ProductInformation": {
+                "Description": ["Three-terminal adjustable positive voltage regulator, 1.2V to 37V, 0.5A."],
+                "Bullets": ["Output current in excess of 0.5A", "Line regulation typically 0.01%", "Output is short-circuit protected"]
+            },
+            "Prices": [
+                {"SupplierPrice": 0.41, "ProductPrice": 0.53, "From": 1, "LocalPrice": 0.62, "LocalVATPrice": 0.75}
+            ],
+            "NumberInStock": 3200,
+            "ManufacturerName": "Texas Instruments",
+            "ManufacturerLogo": "Unknown",
+            "BrandName": "Texas Instruments",
+            "ManufacturerPartNumber": "LM317MDT",
+            "MinimumOrderQty": 1,
+            "Attributes": [
+                {"Label": "Output Voltage", "Value": "1.2 to 37", "Unit": "V"},
+                {"Label": "Output Current", "Value": "0.5", "Unit": "A"}
+            ],
+            "Stock": {"Level": 3200, "Status": "In Stock"},
+            "CountryOfOrigin": "Malaysia",
+            "ImportTaxCode": "8541302900",
+            "OrderMultiples": 1,
+            "Package": "Tape and Reel",
+            "Restriction": false
+        }
+    ]
+}

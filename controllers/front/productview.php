@@ -55,6 +55,13 @@ class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontCont
      * Pre-formats prices in PHP rather than calling a formatter from the
      * template -- PrestaShop's Smarty security policy does not allow
      * arbitrary static-class calls inside .tpl files.
+     *
+     * PriceFormatter::format() only applies locale/symbol formatting -- it
+     * does not convert currency. Supplier prices are in the shop's default
+     * currency, so convertAndFormat() (which converts via the current
+     * context currency's exchange rate before formatting) has to be used
+     * instead, otherwise the price stays the same number when the shopper
+     * switches currency and only the symbol changes.
      */
     private function addFormattedPrices(array $product): array
     {
@@ -63,14 +70,13 @@ class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontCont
         }
 
         $formatter = new PriceFormatter();
-        $currency = $this->context->currency;
 
         foreach ($product['Prices'] as $index => $price) {
             if (isset($price['LocalVATPrice'])) {
-                $price['FormattedLocalVATPrice'] = $formatter->format((float) $price['LocalVATPrice'], $currency);
+                $price['FormattedLocalVATPrice'] = $formatter->convertAndFormat((float) $price['LocalVATPrice']);
             }
             if (isset($price['LocalPrice'])) {
-                $price['FormattedLocalPrice'] = $formatter->format((float) $price['LocalPrice'], $currency);
+                $price['FormattedLocalPrice'] = $formatter->convertAndFormat((float) $price['LocalPrice']);
             }
             $product['Prices'][$index] = $price;
         }
