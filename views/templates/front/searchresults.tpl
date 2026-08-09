@@ -23,10 +23,9 @@
 
         <div class="tab-content">
             {foreach from=$search_results item=supplierData key=supplierId name=supplierPanes}
-                {if isset($supplierData.Products) && $supplierData.Products|@count}
-                    <div class="tab-pane fade{if $smarty.foreach.supplierPanes.first} show active{/if}" id="eind-tabpane-{$supplierId}" role="tabpanel" aria-labelledby="eind-tab-{$supplierId}">
+                <div class="tab-pane fade{if $smarty.foreach.supplierPanes.first} show active{/if}" id="eind-tabpane-{$supplierId}" role="tabpanel" aria-labelledby="eind-tab-{$supplierId}">
 
-                        {if $supplierData.NumberOfResults > 0}
+                        {if isset($supplierData.Products) && $supplierData.NumberOfResults > 0}
                             <div class="row align-items-center bg-light mx-0 mb-3 py-2">
                                 <div class="col-auto">
                                     <span>{l s='%count% results' sprintf=['%count%' => $supplierData.NumberOfResults|number_format:0:',':'.'] d='Modules.Eindsuppliersearch.Shop'}</span>
@@ -82,7 +81,6 @@
                             </div>
                         {/if}
                     </div>
-                {/if}
             {/foreach}
         </div>
     {/if}

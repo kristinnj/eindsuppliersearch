@@ -92,7 +92,11 @@ class EindCallSupplierApi
                         $data[$apiSupplier['supplier_id']]["NumberOfPages"] = round(($data[$apiSupplier['supplier_id']]["NumberOfResults"] / $itemsOnPage) + 0.5);
 
                     } catch(Exception $e) {
-                        $data[$apiSupplier['supplier_id']] = false;
+                        $data[$apiSupplier['supplier_id']] = [
+                            'SupplierName' => $supplierName,
+                            'Products' => [],
+                            'NumberOfResults' => 0,
+                        ];
                         $this->logDebug(sprintf(
                             'Caught exception calling API for %s: %s',
                             $supplierName,
