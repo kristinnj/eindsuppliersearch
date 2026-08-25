@@ -1,0 +1,120 @@
+{
+    "100001": {
+        "SupplierName": "Farnell",
+        "ItemsOnPage": 25,
+        "PageOffset": 1,
+        "NumberOfPages": 1,
+        "NumberOfResults": 1,
+        "ErrorsArray": false,
+        "TaxRate": 0.21,
+        "Products": [
+            {
+                "OrderCode": "FAR-STM32F446",
+                "ProductName": "STMicroelectronics - STM32F446RET6, Microcontroller 32-bit ARM Cortex-M4",
+                "DisplayText": "32-bit ARM Cortex-M4 microcontroller, 512KB flash, LQFP-64",
+                "StockStatus": "In Stock",
+                "RohsCompliant": true,
+                "PacketSize": "1",
+                "Unit": "Each",
+                "Images": [{"PrimaryURL": "https://example.invalid/fixtures/stm32f446ret6.jpg", "SecondaryURL": "", "ThumbNailURL": ""}],
+                "Datasheets": [{"SheetUrl": "https://example.invalid/fixtures/stm32f446ret6.pdf", "SheetName": "Datasheet"}],
+                "ProductInformation": {"Description": ["High-performance ARM Cortex-M4 MCU, 512K bytes of flash memory."]},
+                "Prices": [
+                    {"SupplierPrice": 6.1, "ProductPrice": 7.82, "From": 1, "LocalPrice": 9.14, "LocalVATPrice": 11.06}
+                ],
+                "NumberInStock": 100,
+                "ManufacturerName": "STMicroelectronics",
+                "ManufacturerLogo": "Unknown",
+                "BrandName": "STMicroelectronics",
+                "ManufacturerPartNumber": "STM32F446RET6",
+                "MinimumOrderQty": 1,
+                "Attributes": [{"Label": "Core", "Value": "ARM Cortex-M4", "Unit": ""}],
+                "Stock": {"Level": 100, "Status": "In Stock"},
+                "CountryOfOrigin": "France",
+                "ImportTaxCode": "8542310000",
+                "OrderMultiples": 1,
+                "Package": "Tray",
+                "Restriction": false
+            }
+        ]
+    },
+    "100002": {
+        "SupplierName": "Mouser",
+        "ItemsOnPage": 25,
+        "PageOffset": 1,
+        "NumberOfPages": 1,
+        "NumberOfResults": 1,
+        "ErrorsArray": false,
+        "TaxRate": 0.21,
+        "Products": [
+            {
+                "OrderCode": "MOU-511-STM32F446RET6",
+                "ProductName": "STMicroelectronics - STM32F446RET6, Microcontroller 32-bit ARM Cortex-M4",
+                "DisplayText": "32-bit ARM Cortex-M4 microcontroller, 512KB flash, LQFP-64",
+                "StockStatus": "In Stock",
+                "RohsCompliant": true,
+                "PacketSize": "1",
+                "Unit": "Each",
+                "Images": [{"PrimaryURL": "https://example.invalid/fixtures/stm32f446ret6.jpg", "SecondaryURL": "", "ThumbNailURL": ""}],
+                "Datasheets": [{"SheetUrl": "https://example.invalid/fixtures/stm32f446ret6.pdf", "SheetName": "Datasheet"}],
+                "ProductInformation": {"Description": ["High-performance ARM Cortex-M4 MCU, 512K bytes of flash memory."]},
+                "Prices": [
+                    {"SupplierPrice": 5.9, "ProductPrice": 7.55, "From": 1, "LocalPrice": 8.83, "LocalVATPrice": 10.68},
+                    {"SupplierPrice": 5.2, "ProductPrice": 6.66, "From": 10, "LocalPrice": 7.79, "LocalVATPrice": 9.43}
+                ],
+                "NumberInStock": 500,
+                "ManufacturerName": "STMicroelectronics",
+                "ManufacturerLogo": "Unknown",
+                "BrandName": "STMicroelectronics",
+                "ManufacturerPartNumber": "STM32F446RET6",
+                "MinimumOrderQty": 1,
+                "Attributes": [{"Label": "Core", "Value": "ARM Cortex-M4", "Unit": ""}],
+                "Stock": {"Level": 500, "Status": "In Stock"},
+                "CountryOfOrigin": "France",
+                "ImportTaxCode": "8542310000",
+                "OrderMultiples": 1,
+                "Package": "Tape and Reel",
+                "Restriction": false
+            }
+        ]
+    },
+    "100003": {
+        "SupplierName": "DigiKey",
+        "ItemsOnPage": 25,
+        "PageOffset": 1,
+        "NumberOfPages": 1,
+        "NumberOfResults": 1,
+        "ErrorsArray": false,
+        "TaxRate": 0.21,
+        "Products": [
+            {
+                "OrderCode": "497-STM32F446RET6-ND",
+                "ProductName": "STMicroelectronics - STM32F446RET6, Microcontroller 32-bit ARM Cortex-M4",
+                "DisplayText": "32-bit ARM Cortex-M4 microcontroller, 512KB flash, LQFP-64",
+                "StockStatus": "In Stock",
+                "RohsCompliant": true,
+                "PacketSize": "1",
+                "Unit": "Each",
+                "Images": [{"PrimaryURL": "https://example.invalid/fixtures/stm32f446ret6.jpg", "SecondaryURL": "", "ThumbNailURL": ""}],
+                "Datasheets": [{"SheetUrl": "https://example.invalid/fixtures/stm32f446ret6.pdf", "SheetName": "Datasheet"}],
+                "ProductInformation": {"Description": ["High-performance ARM Cortex-M4 MCU, 512K bytes of flash memory."]},
+                "Prices": [
+                    {"SupplierPrice": 6.3, "ProductPrice": 8.06, "From": 1, "LocalPrice": 9.43, "LocalVATPrice": 11.41}
+                ],
+                "NumberInStock": 2300,
+                "ManufacturerName": "STMicroelectronics",
+                "ManufacturerLogo": "Unknown",
+                "BrandName": "STMicroelectronics",
+                "ManufacturerPartNumber": "STM32F446RET6",
+                "MinimumOrderQty": 1,
+                "Attributes": [{"Label": "Core", "Value": "ARM Cortex-M4", "Unit": ""}],
+                "Stock": {"Level": 2300, "Status": "In Stock"},
+                "CountryOfOrigin": "France",
+                "ImportTaxCode": "8542310000",
+                "OrderMultiples": 1,
+                "Package": "Cut Tape",
+                "Restriction": false
+            }
+        ]
+    }
+}
