@@ -6,7 +6,9 @@ require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/apid
 require_once(_PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/supplierproductpresenter.php');
 
 use EindSupplierSearch\Domain\SearchQuery;
+use EindSupplierSearch\Domain\SearchResult;
 use EindSupplierSearch\Factory\SupplierProviderResolver;
+use EindSupplierSearch\Presenter\ProductSearchHitPresenter;
 use EindSupplierSearch\Service\SearchService;
 
 class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontController
@@ -16,6 +18,11 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
         parent::initContent();
 
         $apidatabase = new EindApiDatabase();
+
+        // Feature flag for the grouped (ProductSearchHit-based) results UI;
+        // see docs/development/grouped-search-ui.md. Off by default -- the
+        // template branches on this, never reads Configuration itself.
+        $groupedSearchUi = (bool) Configuration::get(Eindsuppliersearch::GROUPED_SEARCH_UI_CONFIG_KEY);
 
         $cookie = $this->context->cookie;
         $this->module->ensureSearchCookie($cookie, true);
@@ -254,12 +261,15 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
         $searchData["rohsCompliant"] = (bool) $cookie->eind_rohsCompliant;
 
         if ($useCachedResults) {
-            $searchResults = $apidatabase->getProductListBySessionId($cookie->eind_session_id);
-            if (!is_array($searchResults)) {
-                $searchResults = [];
-            }
+            // Preferred cached-result handling (see docs/development/product-search-hit-presentation.md):
+            // the DB cache only ever stored the legacy bucket array, so we
+            // reconstruct a SearchResult from it via fromLegacyBuckets()
+            // rather than re-querying a provider or duplicating the
+            // aggregation logic that already lives on SearchResult.
+            $cachedBuckets = $apidatabase->getProductListBySessionId($cookie->eind_session_id);
+            $searchResultObject = SearchResult::fromLegacyBuckets(is_array($cachedBuckets) ? $cachedBuckets : [], 'cache', 0.0);
         } else {
-            $searchResults = $this->runSearch(
+            $searchResultObject = $this->runSearch(
                 $cookie->eind_query,
                 (int) $cookie->eind_itemsOnPage,
                 (int) $cookie->eind_pageOffset,
@@ -268,18 +278,27 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
             );
         }
 
+        // Both the legacy array and the grouped view-model are derived from
+        // this single SearchResult instance: the provider (or DB cache) is
+        // only ever read once per request.
+        $searchResults = $searchResultObject->toLegacyArray();
+
         if ($searchResults === false || empty($searchResults)) {
             $searchError = [];
             $searchError['Error'] = (bool) true;
             $searchError['Query'] = (string) $cookie->eind_query;
             $this->context->smarty->assign([
                 'search_results' => $searchError,
+                'product_hits' => [],
+                'grouped_search_ui' => $groupedSearchUi,
                 'currency' => $this->context->currency,
             ]);
             $this->setTemplate('module:eindsuppliersearch/views/templates/front/searchresults.tpl');
 
             return;
         }
+
+        $presentedProductHits = (new ProductSearchHitPresenter())->presentMany($searchResultObject->getProductHits());
 
         foreach ($searchResults as $key => $value) {
             if (!is_array($value)) {
@@ -316,6 +335,8 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
 
         $this->context->smarty->assign([
             'search_results' => $searchResults,
+            'product_hits' => $presentedProductHits,
+            'grouped_search_ui' => $groupedSearchUi,
             'searchData' => $searchData,
             'currency' => $this->context->currency,
         ]);
@@ -326,10 +347,11 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
     /**
      * Resolves the configured supplier provider (live API or JSON fixtures,
      * see SupplierProviderResolver) and runs the search through it via
-     * SearchService, returning the same supplier-id-keyed array shape
-     * EindCallSupplierApi::querySuppliers() used to return directly.
+     * SearchService, returning the SearchResult object itself (not just
+     * its legacy array) so callers can derive both the legacy bucket array
+     * and the grouped ProductSearchHit view from the same single call.
      */
-    private function runSearch(string $criteria, int $itemsOnPage, int $pageOffset, string $searchTerm, string $searchFilter): array
+    private function runSearch(string $criteria, int $itemsOnPage, int $pageOffset, string $searchTerm, string $searchFilter): SearchResult
     {
         $searchQuery = SearchQuery::fromLegacyParameters($criteria, $itemsOnPage, $pageOffset, $searchTerm, $searchFilter);
 
@@ -340,7 +362,7 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
             }
         );
 
-        return $searchService->search($searchQuery)->toLegacyArray();
+        return $searchService->search($searchQuery);
     }
 
     /**

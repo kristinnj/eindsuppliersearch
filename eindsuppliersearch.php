@@ -47,6 +47,11 @@ class Eindsuppliersearch extends Module
     public const API_MODE_LIVE = 'live';
     public const API_MODE_FIXTURE = 'fixture';
 
+    // Feature flag for the grouped (ProductSearchHit-based) search-results
+    // UI; see docs/development/grouped-search-ui.md. Disabled by default --
+    // toggle with Configuration::updateValue(self::GROUPED_SEARCH_UI_CONFIG_KEY, true).
+    public const GROUPED_SEARCH_UI_CONFIG_KEY = 'EIND_GROUPED_SEARCH_UI';
+
     private const SEARCH_COOKIE_TTL = 86400; // 24 hours
 
     public $list_table;
@@ -84,7 +89,8 @@ class Eindsuppliersearch extends Module
             $this->registerOptionalHook('displayMobileSearchBlock') &&
             $this->registerHook('displayLeftColumn') &&
             $this->registerHook('actionFrontControllerSetMedia') &&
-            Configuration::updateValue(self::API_MODE_CONFIG_KEY, self::API_MODE_LIVE);
+            Configuration::updateValue(self::API_MODE_CONFIG_KEY, self::API_MODE_LIVE) &&
+            Configuration::updateValue(self::GROUPED_SEARCH_UI_CONFIG_KEY, false);
     }
 
     private function installListDb()
@@ -155,7 +161,8 @@ class Eindsuppliersearch extends Module
             $this->unregisterOptionalHook('displayMobileSearchBlock') &&
             $this->unregisterHook('displayLeftColumn') &&
             $this->unregisterHook('actionFrontControllerSetMedia') &&
-            Configuration::deleteByName(self::API_MODE_CONFIG_KEY);
+            Configuration::deleteByName(self::API_MODE_CONFIG_KEY) &&
+            Configuration::deleteByName(self::GROUPED_SEARCH_UI_CONFIG_KEY);
     }
 
     public function getContent()

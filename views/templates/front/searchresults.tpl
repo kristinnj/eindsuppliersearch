@@ -10,6 +10,73 @@
             {/capture}
             {include file='errors/not-found.tpl' errorContent=$errorContent}
         </div>
+    {elseif $grouped_search_ui}
+        {* Grouped (ProductSearchHit-based) rendering -- see
+           docs/development/grouped-search-ui.md. Pagination/backtrack
+           controls are shared page-wide here instead of repeated per
+           supplier tab (see that doc's "Why one shared control block"
+           section): the underlying `submit_search=previous/next/iop/back`
+           actions and cookie state are the exact same ones the legacy
+           per-tab controls already use, just rendered once since grouping
+           is inherently cross-supplier. `supplierId=0` mirrors the
+           searchbar's own existing "not tied to one supplier" sentinel --
+           these actions never actually read that value server-side. *}
+        {assign var="eindFirstBucket" value=$search_results|@reset}
+        {if $eindFirstBucket}
+            <div class="row align-items-center bg-light mx-0 mb-3 py-2">
+                <div class="col-auto">
+                    <span>{l s='%count% results' sprintf=['%count%' => $eindFirstBucket.NumberOfResults|number_format:0:',':'.'] d='Modules.Eindsuppliersearch.Shop'}</span>
+                </div>
+                <div class="col d-flex justify-content-end align-items-center flex-wrap gap-2">
+                    <form method="get" class="d-flex align-items-center gap-1" id="eind-items-on-page-form-grouped">
+                        <input name="supplierId" value="0" type="hidden">
+                        <input name="submit_search" value="iop" type="hidden">
+                        <label class="mb-0" for="eind-items-on-page-grouped">{l s='Per page' d='Modules.Eindsuppliersearch.Shop'}</label>
+                        <select id="eind-items-on-page-grouped" name="itemsonpage" class="form-select form-select-sm w-auto js-eind-items-on-page">
+                            {foreach from=[10,25,100] item=option}
+                                <option value="{$option}"{if (int)$eindFirstBucket.ItemsOnPage == $option} selected{/if}>{$option}</option>
+                            {/foreach}
+                        </select>
+                    </form>
+                    <form method="get" action="{$link->getModuleLink('eindsuppliersearch', 'searchresults')}">
+                        <input name="supplierId" value="0" type="hidden">
+                        <input name="submit_search" value="previous" type="hidden">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"{if !$eindFirstBucket.HasPreviousPage} disabled{/if}>&laquo; {l s='Previous' d='Modules.Eindsuppliersearch.Shop'}</button>
+                    </form>
+                    <span>{l s='Page %current% of %total%' sprintf=['%current%' => $eindFirstBucket.CurrentPage, '%total%' => $eindFirstBucket.NumberOfPages|number_format:0:',':'.'] d='Modules.Eindsuppliersearch.Shop'}</span>
+                    <form method="get" action="{$link->getModuleLink('eindsuppliersearch', 'searchresults')}">
+                        <input name="supplierId" value="0" type="hidden">
+                        <input name="submit_search" value="next" type="hidden">
+                        <input name="totalResults" value="{$eindFirstBucket.NumberOfResults}" type="hidden">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"{if !$eindFirstBucket.HasNextPage} disabled{/if}>{l s='Next' d='Modules.Eindsuppliersearch.Shop'} &raquo;</button>
+                    </form>
+                </div>
+            </div>
+
+            {if $eindFirstBucket.BackTrack}
+                <form method="post" class="mb-3">
+                    <input name="submit_search" value="back" type="hidden">
+                    <input name="supplierId" value="0" type="hidden">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">&larr; {l s='Back to search' d='Modules.Eindsuppliersearch.Shop'}</button>
+                </form>
+            {/if}
+        {/if}
+
+        {if $product_hits}
+            <div id="js-product-list" class="eind-search-hits">
+                {foreach from=$product_hits item=hit}
+                    {include file='module:eindsuppliersearch/views/templates/front/_partials/product-search-hit.tpl' hit=$hit}
+                {/foreach}
+            </div>
+        {else}
+            <div id="js-product-list">
+                {capture assign="errorContent"}
+                    <p class="h3">{l s='No results found for "%query%"' sprintf=['%query%' => $searchData.query] d='Shop.Theme.Catalog'}</p>
+                    <p>{l s='Try adjusting your search criteria.' d='Shop.Theme.Catalog'}</p>
+                {/capture}
+                {include file='errors/not-found.tpl' errorContent=$errorContent}
+            </div>
+        {/if}
     {else}
         <ul class="nav nav-tabs mb-3" role="tablist">
             {foreach from=$search_results item=supplierData key=supplierId name=supplierTabs}

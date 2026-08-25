@@ -76,3 +76,236 @@
     max-height: 80vh;
     object-fit: contain;
 }
+
+/*
+ * Grouped search-results UI (feature-flagged, see
+ * docs/development/grouped-search-ui.md). One .eind-search-hit per
+ * ProductSearchHit: a compact technical column plus a supplier-offers
+ * table that collapses into stacked rows below the sm breakpoint instead
+ * of scrolling horizontally.
+ */
+.eind-search-hits {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.eind-search-hit {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: var(--bs-body-bg, #fff);
+}
+
+.eind-search-hit__header {
+    margin-bottom: 0.75rem;
+}
+
+.eind-search-hit__identity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.eind-search-hit__manufacturer {
+    font-weight: 600;
+}
+
+.eind-search-hit__mpn {
+    font-family: var(--bs-font-monospace, monospace);
+}
+
+.eind-search-hit__name {
+    margin: 0.25rem 0 0;
+    font-size: 1.1rem;
+}
+
+.eind-search-hit__description {
+    margin: 0.25rem 0 0;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.eind-search-hit__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.eind-search-hit__supplier-count {
+    font-weight: 600;
+}
+
+.eind-search-hit__compliance {
+    color: var(--bs-success, #198754);
+}
+
+.eind-search-hit__body {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.eind-search-hit__technical {
+    flex: 0 0 140px;
+    width: 140px;
+}
+
+.eind-search-hit__image-wrapper {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background-color: var(--bs-body-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+}
+
+.eind-search-hit__image-wrapper--has-image {
+    cursor: zoom-in;
+}
+
+.eind-search-hit__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.eind-search-hit__attributes {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    font-size: 0.8rem;
+}
+
+.eind-search-hit__attribute {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.125rem 0;
+    border-bottom: 1px dotted var(--bs-border-color, #dee2e6);
+}
+
+.eind-search-hit__attribute-label {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.eind-search-hit__datasheet {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.eind-search-hit__offers {
+    flex: 1 1 420px;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.eind-search-offers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.eind-search-offers-table th,
+.eind-search-offers-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    vertical-align: top;
+}
+
+.eind-search-offers-table th {
+    color: var(--bs-secondary-color, #6c757d);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.eind-search-offer__stock-level {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.eind-search-offer__price-tier {
+    display: block;
+    font-weight: 600;
+}
+
+.eind-search-offer__price-tiers-more {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.eind-search-offer__order-code {
+    font-family: var(--bs-font-monospace, monospace);
+}
+
+@media (max-width: 575.98px) {
+    .eind-search-hit__body {
+        flex-direction: column;
+    }
+
+    .eind-search-hit__technical {
+        width: 96px;
+        flex: 0 0 96px;
+    }
+
+    /* Visually hide the header row on narrow screens while keeping it in
+       the accessibility tree, and turn each row into a labeled stacked
+       block instead of a horizontally-scrolling table. */
+    .eind-search-offers-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .eind-search-offers-table,
+    .eind-search-offers-table tbody,
+    .eind-search-offers-table tr,
+    .eind-search-offers-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .eind-search-offers-table tr {
+        margin-bottom: 0.75rem;
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .eind-search-offers-table tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .eind-search-offers-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+        border-bottom: none;
+    }
+
+    .eind-search-offers-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--bs-secondary-color, #6c757d);
+        flex: 0 0 auto;
+    }
+
+    .eind-search-offer__price-tier,
+    .eind-search-offer__price-tiers-more {
+        text-align: right;
+    }
+}
