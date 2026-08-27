@@ -2,6 +2,7 @@
 
 namespace EindSupplierSearch\Presenter;
 
+use EindSupplierSearch\Domain\OfferActionReference;
 use EindSupplierSearch\Domain\ProductSearchHit;
 use EindSupplierSearch\Domain\SupplierOffer;
 
@@ -59,6 +60,35 @@ final class ProductSearchHitPresenter
             'deliveryInfo' => $offer->getDeliveryInfo(),
             'priceTiers' => $offer->getPriceTiers(),
             'timestamp' => $offer->getTimestamp()->format(DATE_ATOM),
+            'action' => $this->presentAction($offer->getActionReference()),
+        ];
+    }
+
+    /**
+     * Opaque-to-the-template action information: whether this offer can
+     * safely perform a commerce action, and if so, the reference fields
+     * the existing add-to-cart bridge (EindAddToCartFunctions) needs to
+     * re-locate the exact source row server-side. Never carries price,
+     * stock, or any other commercial data -- that stays on the offer
+     * itself and is never trusted from the browser on submit.
+     *
+     * @return array{available: bool, reference: array{supplierBucketId: int|string, sourceRowIndex: int}|null}
+     */
+    private function presentAction(?OfferActionReference $actionReference): array
+    {
+        if ($actionReference === null) {
+            return [
+                'available' => false,
+                'reference' => null,
+            ];
+        }
+
+        return [
+            'available' => true,
+            'reference' => [
+                'supplierBucketId' => $actionReference->getSupplierBucketId(),
+                'sourceRowIndex' => $actionReference->getSourceRowIndex(),
+            ],
         ];
     }
 }

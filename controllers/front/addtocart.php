@@ -50,16 +50,37 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
                 return $this->renderJson(false, $this->module->l('The tax rule for supplier products is not configured.'));
             }
 
-            $product = $this->cartHelper->getProductBySessionId(
-                $cookie->eind_session_id,
-                $supplierId,
-                $productReference,
-                $orderCode
-            );
+            // Supplier-strict resolution (see
+            // docs/development/offer-action-reference.md, "Supplier-strict
+            // commerce resolution"): product_reference must be a genuine
+            // row index, not an arbitrary string that would silently
+            // coerce to 0 via (int) cast -- reject anything else rather
+            // than guess.
+            if (!ctype_digit((string) $productReference)) {
+                $this->logResolutionFailure('MALFORMED_ROW_REFERENCE', $supplierId, $productReference, $orderCode);
 
-            if (!$product) {
                 return $this->renderJson(false, $this->module->l('Unable to locate the product in the cached supplier response.'));
             }
+
+            try {
+                $actionReference = new \EindSupplierSearch\Domain\OfferActionReference($supplierId, (int) $productReference);
+            } catch (\InvalidArgumentException $exception) {
+                $this->logResolutionFailure('INVALID_REFERENCE', $supplierId, $productReference, $orderCode);
+
+                return $this->renderJson(false, $this->module->l('Unable to locate the product in the cached supplier response.'));
+            }
+
+            $expectedOrderCode = ($orderCode !== null && $orderCode !== '') ? (string) $orderCode : null;
+
+            $resolution = $this->cartHelper->getStrictCachedOffer($cookie->eind_session_id, $actionReference, $expectedOrderCode);
+
+            if (!$resolution->isSuccessful()) {
+                $this->logResolutionFailure((string) $resolution->getFailureCategory(), $supplierId, $productReference, $orderCode);
+
+                return $this->renderJson(false, $this->module->l('Unable to locate the product in the cached supplier response.'));
+            }
+
+            $product = $resolution->getProduct();
 
             $category = (int) Configuration::get('EIND_SUPPLIERSEARCH_DEFAULT_CATEGORY');
             if ($category <= 0) {
@@ -117,6 +138,26 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
 
             return $this->renderJson(false, $message);
         }
+    }
+
+    /**
+     * Logs a failed offer resolution with enough context to diagnose it
+     * (requested supplier/row/order-code, failure category) without
+     * logging anything sensitive -- see
+     * docs/development/offer-action-reference.md, "Logging".
+     */
+    private function logResolutionFailure(string $category, int $supplierId, $productReference, $orderCode): void
+    {
+        \PrestaShopLogger::addLog(
+            sprintf(
+                '[EindSupplierSearch] Offer resolution failed: category=%s supplierId=%d row=%s orderCode=%s',
+                $category,
+                $supplierId,
+                (string) $productReference,
+                ($orderCode !== null && $orderCode !== '') ? (string) $orderCode : '-'
+            ),
+            2
+        );
     }
 
     private function denyInvalidRequest(): void

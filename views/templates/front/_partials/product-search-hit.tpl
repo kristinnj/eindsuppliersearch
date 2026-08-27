@@ -9,18 +9,32 @@
  *   manufacturer, manufacturerPartNumber, name, description,
  *   attributes[], images[], datasheets[], compliance{}, supplierCount,
  *   offers[] (supplierName, supplierOrderCode, stockLevel, stockStatus,
- *   minimumOrderQty, packaging, deliveryInfo, priceTiers[], timestamp)
+ *   minimumOrderQty, packaging, deliveryInfo, priceTiers[], timestamp,
+ *   action{available, reference{supplierBucketId, sourceRowIndex}})
  *
  * Intentionally generic/reusable: does not assume it is only used on the
  * search-results page (no page-specific query/pagination state is read
  * here), and does not rank/merge/format offers -- it only loops and
  * displays what the presenter already computed.
  *
- * No supplier-offer action (add-to-cart / view-detail) is rendered here:
- * the current view-model carries no supplier-bucket/row identifiers, so
- * there is nothing safe to link to yet without inventing new commerce
- * plumbing (see docs/development/grouped-search-ui.md, "Known
- * limitations").
+ * Add-to-cart per offer (see docs/development/offer-action-reference.md):
+ * reuses the exact same form structure/data attributes and JS
+ * (js-eind-add-to-cart-form, in views/js/eindsuppliersearch.js) the
+ * legacy virtual-product-miniature.tpl card already uses, so it posts to
+ * the same existing EindsuppliersearchAddToCart endpoint unchanged.
+ * offer.action.reference carries only the technical bucket/row
+ * coordinates the server needs to re-locate this exact cached row --
+ * never price/stock/name, which the server always recovers itself.
+ * `action.available` is false (no actions rendered) when an offer has no
+ * safe reference to act on.
+ *
+ * View details per offer (see docs/development/strict-product-detail.md):
+ * a plain link to the existing productview.php controller/page, built
+ * from the same offer.action.reference (+ this offer's own supplierOrderCode
+ * as a verification value) -- so it resolves this exact supplier's row
+ * via the same strict, supplier-scoped resolution add-to-cart uses. Both
+ * actions use the identical reference; there is no separate
+ * detail-only identifier.
  *}
 <article class="eind-search-hit">
     <header class="eind-search-hit__header">
@@ -99,6 +113,7 @@
                         <th scope="col">{l s='Price' d='Modules.Eindsuppliersearch.Shop'}</th>
                         <th scope="col">{l s='Delivery' d='Modules.Eindsuppliersearch.Shop'}</th>
                         <th scope="col">{l s='Order code' d='Modules.Eindsuppliersearch.Shop'}</th>
+                        <th scope="col">{l s='Action' d='Modules.Eindsuppliersearch.Shop'}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -143,6 +158,71 @@
                             </td>
                             <td class="eind-search-offer__order-code" data-label="{l s='Order code' d='Modules.Eindsuppliersearch.Shop'}">
                                 {$offer.supplierOrderCode|escape:'html'}
+                            </td>
+                            <td class="eind-search-offer__action" data-label="{l s='Action' d='Modules.Eindsuppliersearch.Shop'}">
+                                {if $offer.action.available}
+                                    <div class="eind-search-offer__actions">
+                                        {* Reuses the same productview.php controller the legacy
+                                           virtual-product-miniature.tpl detail link already targets, with the
+                                           exact same query parameters (supplierId/key/orderCode) built from
+                                           this offer's own OfferActionReference -- so the detail page resolves
+                                           this exact supplier's row via strict, supplier-scoped resolution (see
+                                           docs/development/strict-product-detail.md). Building the URL here
+                                           mirrors this template's own existing pagination-form links just above
+                                           ({$link->getModuleLink(...)} called directly in Smarty), not a new
+                                           pattern. *}
+                                        <a
+                                            class="eind-search-offer__view-details btn btn-outline-secondary btn-sm"
+                                            href="{$link->getModuleLink('eindsuppliersearch', 'productview', [
+                                                'supplierId' => $offer.action.reference.supplierBucketId,
+                                                'key' => $offer.action.reference.sourceRowIndex,
+                                                'orderCode' => $offer.supplierOrderCode
+                                            ])|escape:'html'}"
+                                        >
+                                            {l s='View details' d='Modules.Eindsuppliersearch.Shop'}
+                                        </a>
+
+                                        {* qty-input.tpl (theme component) reads $product.name/$product.id_product
+                                           for its labels/button ids; it is normally included from inside a real
+                                           catalog product-listing scope. There is no PrestaShop product behind a
+                                           still-virtual offer, so a minimal stand-in is passed explicitly -- a
+                                           synthetic id unique per offer row (bucket*1000+row) keeps the
+                                           increment/decrement button ids collision-free across every offer on
+                                           the page. *}
+                                        <form
+                                            class="eind-search-offer__add-form js-eind-add-to-cart-form"
+                                            data-supplier-id="{$offer.action.reference.supplierBucketId|escape:'html'}"
+                                            data-product-reference="{$offer.action.reference.sourceRowIndex|escape:'html'}"
+                                            data-order-code="{$offer.supplierOrderCode|escape:'html'}"
+                                        >
+                                            <div class="quantity-button js-quantity-button">
+                                                {include file='components/qty-input.tpl'
+                                                    product=[
+                                                        "name" => "{$hit.manufacturerPartNumber} ({$offer.supplierName})",
+                                                        "id_product" => $offer.action.reference.supplierBucketId * 1000 + $offer.action.reference.sourceRowIndex
+                                                    ]
+                                                    attributes=[
+                                                        "id" => "quantity_wanted_eind_hit_{$offer.action.reference.supplierBucketId}_{$offer.action.reference.sourceRowIndex}",
+                                                        "name" => "quantity",
+                                                        "value" => "{$offer.minimumOrderQty}",
+                                                        "min" => "{$offer.minimumOrderQty}",
+                                                        "step" => "1"
+                                                    ]
+                                                }
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                data-button-action="add-to-cart"
+                                                class="eind-search-offer__add-btn btn btn-primary btn-sm js-eind-add-to-cart-submit"
+                                                aria-label="{l s='Add %supplier% offer to cart' sprintf=['%supplier%' => $offer.supplierName] d='Modules.Eindsuppliersearch.Shop'}"
+                                            >
+                                                {l s='Add to cart' d='Shop.Theme.Actions'}
+                                            </button>
+                                        </form>
+                                    </div>
+                                {else}
+                                    <span class="eind-search-offer__action-unavailable">&mdash;</span>
+                                {/if}
                             </td>
                         </tr>
                     {/foreach}

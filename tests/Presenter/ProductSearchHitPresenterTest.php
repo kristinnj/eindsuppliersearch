@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace EindSupplierSearch\Tests\Presenter;
 
 use EindSupplierSearch\Domain\NormalizedProduct;
+use EindSupplierSearch\Domain\OfferActionReference;
 use EindSupplierSearch\Domain\ProductSearchHit;
 use EindSupplierSearch\Domain\SupplierOffer;
 use EindSupplierSearch\Presenter\ProductSearchHitPresenter;
@@ -50,6 +51,7 @@ final class ProductSearchHitPresenterTest extends TestCase
             'packaging' => 'Cut Tape',
             'deliveryInfo' => null,
             'timestamp' => new \DateTimeImmutable('2026-08-25T12:34:56+00:00'),
+            'actionReference' => null,
         ];
         $values = array_merge($defaults, $overrides);
 
@@ -62,7 +64,8 @@ final class ProductSearchHitPresenterTest extends TestCase
             $values['minimumOrderQty'],
             $values['packaging'],
             $values['deliveryInfo'],
-            $values['timestamp']
+            $values['timestamp'],
+            $values['actionReference']
         );
     }
 
@@ -264,9 +267,10 @@ final class ProductSearchHitPresenterTest extends TestCase
             array_keys($view)
         );
         self::assertSame(
-            ['supplierName', 'supplierOrderCode', 'stockLevel', 'stockStatus', 'minimumOrderQty', 'packaging', 'deliveryInfo', 'priceTiers', 'timestamp'],
+            ['supplierName', 'supplierOrderCode', 'stockLevel', 'stockStatus', 'minimumOrderQty', 'packaging', 'deliveryInfo', 'priceTiers', 'timestamp', 'action'],
             array_keys($view['offers'][0])
         );
+        self::assertSame(['available', 'reference'], array_keys($view['offers'][0]['action']));
     }
 
     public function testOffersPreserveOrderThroughPresentation(): void
@@ -303,5 +307,47 @@ final class ProductSearchHitPresenterTest extends TestCase
 
         self::assertSame(['FAR-1', 'MOU-2'], array_column($view['offers'], 'supplierOrderCode'));
         self::assertNotSame($view['offers'][0]['supplierOrderCode'], $view['offers'][1]['supplierOrderCode']);
+    }
+
+    public function testActionableOfferPresentsAvailableTrueWithReferenceData(): void
+    {
+        $hit = new ProductSearchHit($this->product(), [
+            $this->offer(['actionReference' => new OfferActionReference(100001, 3)]),
+        ]);
+
+        $view = (new ProductSearchHitPresenter())->present($hit);
+
+        self::assertTrue($view['offers'][0]['action']['available']);
+        self::assertSame(
+            ['supplierBucketId' => 100001, 'sourceRowIndex' => 3],
+            $view['offers'][0]['action']['reference']
+        );
+    }
+
+    public function testNonActionableOfferPresentsAvailableFalseWithNullReference(): void
+    {
+        $hit = new ProductSearchHit($this->product(), [$this->offer(['actionReference' => null])]);
+
+        $view = (new ProductSearchHitPresenter())->present($hit);
+
+        self::assertFalse($view['offers'][0]['action']['available']);
+        self::assertNull($view['offers'][0]['action']['reference']);
+    }
+
+    public function testSupplierAReferenceNeverAppearsOnSupplierBsOffer(): void
+    {
+        $hit = new ProductSearchHit($this->product(), [
+            $this->offer(['supplierName' => 'Farnell', 'actionReference' => new OfferActionReference(100001, 0)]),
+            $this->offer(['supplierName' => 'Mouser', 'actionReference' => new OfferActionReference(100002, 0)]),
+        ]);
+
+        $view = (new ProductSearchHitPresenter())->present($hit);
+
+        self::assertSame(100001, $view['offers'][0]['action']['reference']['supplierBucketId']);
+        self::assertSame(100002, $view['offers'][1]['action']['reference']['supplierBucketId']);
+        self::assertNotSame(
+            $view['offers'][0]['action']['reference']['supplierBucketId'],
+            $view['offers'][1]['action']['reference']['supplierBucketId']
+        );
     }
 }

@@ -13,6 +13,13 @@ if (!defined('_PS_ROOT_DIR_')) {
     define('_PS_ROOT_DIR_', $repoRoot);
 }
 
+if (!defined('_PS_MODE_DEV_')) {
+    // EindAddToCartFunctions::debugLog() reads this at call time (not
+    // parse time); off here so tests exercise the same "quiet unless dev
+    // mode" behavior production has, without needing a PrestaShop bootstrap.
+    define('_PS_MODE_DEV_', false);
+}
+
 /*
  * Deliberately vendor-dev/, not vendor/: PrestaShop core's
  * ContainerBuilder::loadModulesAutoloader() unconditionally include_once's

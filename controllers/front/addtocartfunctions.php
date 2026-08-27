@@ -243,126 +243,46 @@ class EindAddToCartFunctions
     }
 
 
-    // ---------------------------IN USE----------------------------------------
-    // Function to get the product list for the session -----------------------+
-    // Returns: Product list or false if none existing
-    function getProductBySessionId($sessionId, $supplierId, $productKey, $orderCode = null)
+    // ---------------------------IN USE-----------------------------------------
+    // Supplier-strict resolution of one cached supplier product row -----------+
+    /**
+     * The single supported production path for resolving a cached supplier
+     * offer, used by both commerce (addtocart.php) and read-only
+     * (productview.php) callers (see
+     * docs/development/offer-action-reference.md, "Supplier-strict
+     * commerce resolution", and docs/development/strict-product-detail.md).
+     * Delegates to EindSupplierSearch\Service\CachedOfferResolver, which
+     * never falls back to searching another supplier bucket.
+     */
+    function getStrictCachedOffer($sessionId, \EindSupplierSearch\Domain\OfferActionReference $reference, ?string $expectedOrderCode = null): \EindSupplierSearch\Domain\CachedOfferResolution
     {
-        $this->debugLog('1 getProductBySessionID; SessionID: ' . $sessionId . ', SupplierID: ' . $supplierId . ', Key - ' . $productKey);
+        $raw = $this->fetchCachedRow($sessionId);
+        if ($raw === null) {
+            $this->debugLog('getStrictCachedOffer: no cached row for session.');
+            return \EindSupplierSearch\Domain\CachedOfferResolution::failure(\EindSupplierSearch\Domain\CachedOfferResolution::CACHE_MISSING);
+        }
 
+        $data = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            $this->debugLog('getStrictCachedOffer; json_decode failed: ' . json_last_error_msg());
+            return \EindSupplierSearch\Domain\CachedOfferResolution::failure(\EindSupplierSearch\Domain\CachedOfferResolution::MALFORMED_CACHE);
+        }
+
+        return (new \EindSupplierSearch\Service\CachedOfferResolver())->resolve($data, $reference, $expectedOrderCode);
+    }
+
+    /** @return string|null the raw JSON column value for this session, or null if no row exists */
+    private function fetchCachedRow($sessionId): ?string
+    {
         $sql = 'SELECT product_list FROM ' . _DB_PREFIX_ . pSQL(Eindsuppliersearch::SEARCH_RESULTS_TABLE) . ' WHERE session_id = \'' . pSQL($sessionId) . '\'';
         $result = Db::getInstance()->getValue($sql);
-        $this->debugLog('2 getProductBySessionId; $result: ' . print_r($result, true));
-        if (!$result) {                                                                 // If there is no recort return false
-            $this->debugLog('3 getProductBySessionID: FALSE');
-            return false;
-        }
-        $data = json_decode($result, true);                                             // Json Decode the data
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
-            $this->debugLog('getProductBySessionId; json_decode failed: ' . json_last_error_msg());
-            return false;
+        $this->debugLog('2 fetchCachedRow; $result: ' . print_r($result, true));
+        if (!$result) {
+            $this->debugLog('3 fetchCachedRow: FALSE');
+            return null;
         }
 
-        $rawSupplierId = (string)$supplierId;
-        $rawProductKey = (string)$productKey;
-        $intSupplierId = ctype_digit($rawSupplierId) ? (int)$rawSupplierId : null;
-        $intProductKey = ctype_digit($rawProductKey) ? (int)$rawProductKey : null;
-
-        // Resolve supplier bucket using multiple key forms
-        $supplierBuckets = [];
-        if (isset($data[$rawSupplierId])) {
-            $supplierBuckets[] = $data[$rawSupplierId];
-        }
-        if ($intSupplierId !== null && isset($data[$intSupplierId])) {
-            $supplierBuckets[] = $data[$intSupplierId];
-        }
-        if (!$supplierBuckets) {
-            foreach ($data as $key => $supplier) {
-                if (!is_array($supplier)) {
-                    continue;
-                }
-                if (isset($supplier['SupplierId']) && (string)$supplier['SupplierId'] === $rawSupplierId) {
-                    $supplierBuckets[] = $supplier;
-                    break;
-                }
-            }
-        }
-
-        $supplierProducts = null;
-        if ($supplierBuckets) {
-            foreach ($supplierBuckets as $bucket) {
-                if (isset($bucket['Products']) && is_array($bucket['Products'])) {
-                    $supplierProducts = $bucket['Products'];
-                    break;
-                }
-            }
-        } else {
-            $this->debugLog('getProductBySessionId; supplier ' . $rawSupplierId . ' missing from cached results, will search globally.');
-        }
-
-        if (isset($supplierProducts[$rawProductKey])) {
-            $product = $supplierProducts[$rawProductKey];
-            $this->debugLog('4 getProductBySessionId; matched raw key. product.OrderCode: ' . $product["OrderCode"]);
-            return $product;
-        }
-
-        if ($intProductKey !== null && isset($supplierProducts[$intProductKey])) {
-            $product = $supplierProducts[$intProductKey];
-            $this->debugLog('4 getProductBySessionId; matched int key. product.OrderCode: ' . $product["OrderCode"]);
-            return $product;
-        }
-
-        $targetOrderCode = $orderCode ? (string)$orderCode : null;
-
-        foreach ($supplierProducts as $idx => $product) {
-            if (!is_array($product)) {
-                continue;
-            }
-            if (isset($product['OrderCode']) && (string)$product['OrderCode'] === $rawProductKey) {
-                $this->debugLog('getProductBySessionId; fallback matched OrderCode ' . $product['OrderCode'] . ' at index ' . $idx);
-                return $product;
-            }
-            if ($targetOrderCode !== null && isset($product['OrderCode']) && (string)$product['OrderCode'] === $targetOrderCode) {
-                $this->debugLog('getProductBySessionId; fallback matched explicit orderCode ' . $product['OrderCode'] . ' at index ' . $idx);
-                return $product;
-            }
-        }
-
-        // Last resort: search all suppliers in the cached payload
-        foreach ($data as $sid => $supplier) {
-            if (!is_array($supplier) || !isset($supplier['Products']) || !is_array($supplier['Products'])) {
-                continue;
-            }
-
-            if (isset($supplier['Products'][$rawProductKey])) {
-                $product = $supplier['Products'][$rawProductKey];
-                $this->debugLog('getProductBySessionId; global fallback matched raw key under supplier ' . $sid);
-                return $product;
-            }
-
-            if ($intProductKey !== null && isset($supplier['Products'][$intProductKey])) {
-                $product = $supplier['Products'][$intProductKey];
-                $this->debugLog('getProductBySessionId; global fallback matched int key under supplier ' . $sid);
-                return $product;
-            }
-
-            foreach ($supplier['Products'] as $idx => $product) {
-                if (!is_array($product)) {
-                    continue;
-                }
-                if (isset($product['OrderCode']) && (string)$product['OrderCode'] === $rawProductKey) {
-                    $this->debugLog('getProductBySessionId; global fallback matched OrderCode ' . $product['OrderCode'] . ' under supplier ' . $sid . ' at index ' . $idx);
-                    return $product;
-                }
-                if ($targetOrderCode !== null && isset($product['OrderCode']) && (string)$product['OrderCode'] === $targetOrderCode) {
-                    $this->debugLog('getProductBySessionId; global fallback matched explicit orderCode ' . $product['OrderCode'] . ' under supplier ' . $sid . ' at index ' . $idx);
-                    return $product;
-                }
-            }
-        }
-
-        $this->debugLog('getProductBySessionId; product key raw ' . $rawProductKey . ' missing for supplier ' . $rawSupplierId);
-        return false;
+        return $result;
     }
 
     private function isAllowedImageUrl(string $url): bool

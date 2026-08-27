@@ -148,9 +148,9 @@ final class SearchResult
             $keyOrder = [];
             $rowIndex = 0;
 
-            foreach ($this->legacyBuckets as $bucket) {
+            foreach ($this->legacyBuckets as $bucketKey => $bucket) {
                 $supplierName = is_array($bucket) ? (string) ($bucket['SupplierName'] ?? '') : '';
-                foreach ($this->bucketProducts($bucket) as $product) {
+                foreach ($this->bucketProducts($bucket) as $sourceRow => $product) {
                     $identityKey = $this->computeProductIdentityKey($product, $supplierName, $rowIndex);
                     ++$rowIndex;
 
@@ -160,7 +160,20 @@ final class SearchResult
                         $keyOrder[] = $identityKey;
                     }
 
-                    $offersByKey[$identityKey][] = SupplierOffer::fromLegacyProduct($product, $supplierName);
+                    // The action reference is an implementation-level
+                    // coordinate (which bucket, which row) used only to
+                    // reconnect this offer to EindAddToCartFunctions'
+                    // cached-result lookup -- it plays no part in
+                    // computeProductIdentityKey() above (see
+                    // docs/development/offer-action-reference.md). A
+                    // malformed bucket key (empty string) can't build a
+                    // valid reference; the offer is still shown, just
+                    // without a commerce action, rather than breaking the
+                    // whole result.
+                    $actionReference = $bucketKey !== ''
+                        ? new OfferActionReference($bucketKey, (int) $sourceRow)
+                        : null;
+                    $offersByKey[$identityKey][] = SupplierOffer::fromLegacyProduct($product, $supplierName, $actionReference);
                 }
             }
 

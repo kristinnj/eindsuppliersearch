@@ -21,13 +21,7 @@ class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontCont
         $orderCode = Tools::getValue('orderCode');
 
         $cookie = $this->context->cookie;
-        $product = null;
-
-        if ($this->module->ensureSearchCookie($cookie, false) && !empty($cookie->eind_session_id)) {
-            $cartHelper = new EindAddToCartFunctions();
-            $found = $cartHelper->getProductBySessionId($cookie->eind_session_id, $supplierId, $productKey, $orderCode);
-            $product = $found ?: null;
-        }
+        $product = $this->resolveStrictProduct($cookie, $supplierId, $productKey, $orderCode);
 
         if ($product) {
             $product = $this->addFormattedPrices($product);
@@ -49,6 +43,76 @@ class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontCont
         }
 
         $this->setTemplate('module:eindsuppliersearch/views/templates/front/productview.tpl');
+    }
+
+    /**
+     * Resolves the requested supplier offer through the same
+     * supplier-strict path add-to-cart uses (see
+     * docs/development/strict-product-detail.md): the query-string
+     * supplierId/key/orderCode are untrusted input used only to build an
+     * OfferActionReference, which EindSupplierSearch\Service\CachedOfferResolver
+     * then resolves ONLY within the requested supplier's own cached
+     * bucket -- never falling back to another supplier, another row, or
+     * trusting these values as product data themselves. Returns null on
+     * any failure (missing session, malformed cache, unknown supplier,
+     * missing row, order-code mismatch, or a non-numeric row reference),
+     * which productview.tpl already renders as its existing "Product not
+     * found" state.
+     *
+     * @param mixed $productKey
+     * @param mixed $orderCode
+     * @return array<string, mixed>|null
+     */
+    private function resolveStrictProduct($cookie, int $supplierId, $productKey, $orderCode): ?array
+    {
+        if ($supplierId <= 0 || !ctype_digit((string) $productKey)) {
+            return null;
+        }
+
+        if (!$this->module->ensureSearchCookie($cookie, false) || empty($cookie->eind_session_id)) {
+            return null;
+        }
+
+        try {
+            $reference = new \EindSupplierSearch\Domain\OfferActionReference($supplierId, (int) $productKey);
+        } catch (\InvalidArgumentException $exception) {
+            $this->logResolutionFailure('INVALID_REFERENCE', $supplierId, $productKey, $orderCode);
+
+            return null;
+        }
+
+        $expectedOrderCode = ($orderCode !== null && $orderCode !== '') ? (string) $orderCode : null;
+
+        $cartHelper = new EindAddToCartFunctions();
+        $resolution = $cartHelper->getStrictCachedOffer($cookie->eind_session_id, $reference, $expectedOrderCode);
+
+        if (!$resolution->isSuccessful()) {
+            $this->logResolutionFailure((string) $resolution->getFailureCategory(), $supplierId, $productKey, $orderCode);
+
+            return null;
+        }
+
+        return $resolution->getProduct();
+    }
+
+    /**
+     * Logs a failed strict offer resolution with enough context to
+     * diagnose it, without logging anything sensitive -- mirrors
+     * EindsuppliersearchAddToCartModuleFrontController::logResolutionFailure()
+     * (see docs/development/offer-action-reference.md, "Logging").
+     */
+    private function logResolutionFailure(string $category, int $supplierId, $productKey, $orderCode): void
+    {
+        PrestaShopLogger::addLog(
+            sprintf(
+                '[EindSupplierSearch] Detail offer resolution failed: category=%s supplierId=%d row=%s orderCode=%s',
+                $category,
+                $supplierId,
+                (string) $productKey,
+                ($orderCode !== null && $orderCode !== '') ? (string) $orderCode : '-'
+            ),
+            2
+        );
     }
 
     /**

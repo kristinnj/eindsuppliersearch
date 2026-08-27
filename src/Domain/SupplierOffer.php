@@ -19,6 +19,7 @@ final class SupplierOffer
     private ?string $packaging;
     private ?string $deliveryInfo;
     private \DateTimeImmutable $timestamp;
+    private ?OfferActionReference $actionReference;
 
     public function __construct(
         string $supplierName,
@@ -29,7 +30,8 @@ final class SupplierOffer
         int $minimumOrderQty,
         ?string $packaging,
         ?string $deliveryInfo,
-        \DateTimeImmutable $timestamp
+        \DateTimeImmutable $timestamp,
+        ?OfferActionReference $actionReference = null
     ) {
         $this->supplierName = $supplierName;
         $this->supplierOrderCode = $supplierOrderCode;
@@ -40,13 +42,14 @@ final class SupplierOffer
         $this->packaging = $packaging;
         $this->deliveryInfo = $deliveryInfo;
         $this->timestamp = $timestamp;
+        $this->actionReference = $actionReference;
     }
 
     /**
      * @param array<string, mixed> $standardProduct one entry from the legacy
      *   "standard product" Products[] array
      */
-    public static function fromLegacyProduct(array $standardProduct, string $supplierName): self
+    public static function fromLegacyProduct(array $standardProduct, string $supplierName, ?OfferActionReference $actionReference = null): self
     {
         $minimumOrderQty = $standardProduct['MinimumOrderQty'] ?? null;
 
@@ -59,7 +62,8 @@ final class SupplierOffer
             is_numeric($minimumOrderQty) ? (int) $minimumOrderQty : 1,
             isset($standardProduct['Package']) ? (string) $standardProduct['Package'] : null,
             null, // legacy data has no delivery-lead-time field to source this from
-            new \DateTimeImmutable()
+            new \DateTimeImmutable(),
+            $actionReference
         );
     }
 
@@ -107,5 +111,15 @@ final class SupplierOffer
     public function getTimestamp(): \DateTimeImmutable
     {
         return $this->timestamp;
+    }
+
+    /**
+     * Null when this offer cannot safely perform a commerce action -- e.g.
+     * it was built without a known source bucket/row (see
+     * SearchResult::getProductHits()).
+     */
+    public function getActionReference(): ?OfferActionReference
+    {
+        return $this->actionReference;
     }
 }

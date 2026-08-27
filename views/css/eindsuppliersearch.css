@@ -247,6 +247,32 @@
     font-family: var(--bs-font-monospace, monospace);
 }
 
+.eind-search-offer__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.eind-search-offer__view-details {
+    white-space: nowrap;
+}
+
+.eind-search-offer__add-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.eind-search-offer__add-form .quantity-button {
+    max-width: 6rem;
+}
+
+.eind-search-offer__action-unavailable {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
 @media (max-width: 575.98px) {
     .eind-search-hit__body {
         flex-direction: column;
@@ -307,5 +333,26 @@
     .eind-search-offer__price-tier,
     .eind-search-offer__price-tiers-more {
         text-align: right;
+    }
+
+    /* The action cell holds a quantity input + button, not a short value
+       -- give it its own row instead of squeezing next to the label. */
+    .eind-search-offers-table td.eind-search-offer__action {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.375rem;
+    }
+
+    .eind-search-offer__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .eind-search-offer__view-details {
+        text-align: center;
+    }
+
+    .eind-search-offer__add-form {
+        justify-content: flex-end;
     }
 }

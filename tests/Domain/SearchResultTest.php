@@ -341,4 +341,95 @@ final class SearchResultTest extends TestCase
             array_map(static fn ($o) => $o->getSupplierOrderCode(), $offers)
         );
     }
+
+    // --- Offer action references (OfferActionReference) -----------------
+
+    public function testThreeSuppliersGroupedUnderOneProductRetainThreeDistinctActionReferences(): void
+    {
+        $result = SearchResult::fromLegacyBuckets([
+            100001 => $this->bucket('Farnell', [$this->product(['OrderCode' => 'FAR-1'])]),
+            100002 => $this->bucket('Mouser', [$this->product(['OrderCode' => 'MOU-1'])]),
+            100003 => $this->bucket('DigiKey', [$this->product(['OrderCode' => 'DK-1'])]),
+        ], 'fake', 1.0);
+
+        $offers = $result->getProductHits()[0]->getOffers();
+
+        self::assertCount(3, $offers);
+        $bucketIds = array_map(static fn ($o) => $o->getActionReference()->getSupplierBucketId(), $offers);
+        self::assertSame([100001, 100002, 100003], $bucketIds);
+        self::assertSame(3, count(array_unique($bucketIds)));
+    }
+
+    public function testActionReferenceSourceRowMatchesThatOffersPositionWithinItsOwnBucket(): void
+    {
+        $result = SearchResult::fromLegacyBuckets([
+            100001 => $this->bucket('Farnell', [
+                $this->product(['OrderCode' => 'FAR-A', 'ManufacturerPartNumber' => 'PART-A']),
+                $this->product(['OrderCode' => 'FAR-B', 'ManufacturerPartNumber' => 'PART-B']),
+            ]),
+        ], 'fake', 1.0);
+
+        $hits = $result->getProductHits();
+        $hitByMpn = [];
+        foreach ($hits as $hit) {
+            $hitByMpn[$hit->getProduct()->getManufacturerPartNumber()] = $hit;
+        }
+
+        self::assertSame(0, $hitByMpn['PART-A']->getOffers()[0]->getActionReference()->getSourceRowIndex());
+        self::assertSame(1, $hitByMpn['PART-B']->getOffers()[0]->getActionReference()->getSourceRowIndex());
+    }
+
+    public function testActionReferenceNeverLeaksBetweenOffersInGroupedResult(): void
+    {
+        $result = SearchResult::fromLegacyBuckets([
+            100001 => $this->bucket('Farnell', [$this->product(['OrderCode' => 'FAR-1'])]),
+            100002 => $this->bucket('Mouser', [$this->product(['OrderCode' => 'MOU-1'])]),
+        ], 'fake', 1.0);
+
+        $offers = $result->getProductHits()[0]->getOffers();
+        $farnellOffer = $offers[0];
+        $mouserOffer = $offers[1];
+
+        self::assertSame('Farnell', $farnellOffer->getSupplierName());
+        self::assertSame(100001, $farnellOffer->getActionReference()->getSupplierBucketId());
+        self::assertSame('Mouser', $mouserOffer->getSupplierName());
+        self::assertSame(100002, $mouserOffer->getActionReference()->getSupplierBucketId());
+    }
+
+    public function testActionReferencesDoNotAffectProductAggregationIdentity(): void
+    {
+        // Same manufacturer+MPN from two different bucket keys must still
+        // merge into one hit -- the action reference is metadata, not part
+        // of computeProductIdentityKey().
+        $result = SearchResult::fromLegacyBuckets([
+            100001 => $this->bucket('Farnell', [$this->product(['OrderCode' => 'FAR-1'])]),
+            999999 => $this->bucket('SomeOtherSupplier', [$this->product(['OrderCode' => 'OTH-1'])]),
+        ], 'fake', 1.0);
+
+        self::assertCount(1, $result->getProductHits());
+        self::assertCount(2, $result->getProductHits()[0]->getOffers());
+    }
+
+    public function testLegacyGetOffersNeverCarriesAnActionReference(): void
+    {
+        $result = SearchResult::fromLegacyBuckets([
+            1 => $this->bucket('Farnell', [$this->product()]),
+        ], 'fake', 1.0);
+
+        foreach ($result->getOffers() as $offer) {
+            self::assertNull($offer->getActionReference());
+        }
+    }
+
+    public function testMultiSupplierFixtureOffersEachHaveAnIndependentActionReference(): void
+    {
+        $path = __DIR__ . '/../fixtures/suppliers/multi-supplier-same-product.json';
+        $buckets = json_decode((string) file_get_contents($path), true);
+
+        $offers = SearchResult::fromLegacyBuckets($buckets, 'fake', 1.0)->getProductHits()[0]->getOffers();
+
+        $bucketIds = array_map(static fn ($o) => $o->getActionReference()->getSupplierBucketId(), $offers);
+        self::assertSame([100001, 100002, 100003], $bucketIds);
+        self::assertSame([0, 0, 0], array_map(static fn ($o) => $o->getActionReference()->getSourceRowIndex(), $offers));
+    }
 }
