@@ -32,10 +32,28 @@ final class DisposableDatabaseGuard
         }
     }
 
-    public static function assertSafe(\PDO $pdo, array $config): void
+    /** Explicit opt-in only for this suite's six connection-local native fixtures. */
+    public static function validateTableMetadata(array $config, string $actualDatabase, array $tables, bool $temporaryNativeFixtures = false): void
+    {
+        $names = [];
+        foreach ($tables as $table) {
+            if ($temporaryNativeFixtures && ($table['TABLE_TYPE'] ?? null) === 'TEMPORARY'
+                && in_array($table['TABLE_NAME'] ?? null, ['test_product', 'test_product_shop',
+                    'test_product_supplier', 'test_supplier', 'test_supplier_shop', 'test_shop'], true)) {
+                continue;
+            }
+            if (!isset($table['TABLE_NAME']) || !is_string($table['TABLE_NAME'])) {
+                throw new \RuntimeException('Invalid database metadata; mutation refused.');
+            }
+            $names[] = $table['TABLE_NAME'];
+        }
+        self::validateMetadata($config, $actualDatabase, $names);
+    }
+
+    public static function assertSafe(\PDO $pdo, array $config, bool $temporaryNativeFixtures = false): void
     {
         $actual = $pdo->query('SELECT DATABASE()')->fetchColumn();
-        $tables = $pdo->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()')->fetchAll(\PDO::FETCH_COLUMN);
-        self::validateMetadata($config, (string) $actual, $tables);
+        $tables = $pdo->query('SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()')->fetchAll(\PDO::FETCH_ASSOC);
+        self::validateTableMetadata($config, (string) $actual, $tables, $temporaryNativeFixtures);
     }
 }

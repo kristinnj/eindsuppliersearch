@@ -64,4 +64,27 @@ final class DisposableDatabaseGuardTest extends TestCase
         $this->expectException(\RuntimeException::class);
         DisposableDatabaseGuard::validateMetadata(self::config(), 'eind_dev', []);
     }
+
+    public function testTemporaryFixtureOptInAcceptsOnlyExactConnectionLocalTables(): void
+    {
+        DisposableDatabaseGuard::validateTableMetadata(self::config(), self::config()['database'],
+            [['TABLE_NAME' => 'test_product', 'TABLE_TYPE' => 'TEMPORARY']], true);
+        $this->addToAssertionCount(1);
+    }
+
+    public static function forbiddenFixtureMetadata(): array
+    {
+        return [[false, 'test_product', 'TEMPORARY'], [true, 'test_product', 'BASE TABLE'],
+            [true, 'test_product', 'VIEW'], [true, 'ps_product', 'TEMPORARY'],
+            [true, 'test_cart', 'TEMPORARY'], [true, 'test_product_shop', null]];
+    }
+
+    #[DataProvider('forbiddenFixtureMetadata')]
+    public function testTemporaryOptInNeverPermitsPermanentOrUnlistedNativeTables(bool $optIn, string $name, ?string $type): void
+    {
+        $this->expectException(\RuntimeException::class);
+        DisposableDatabaseGuard::validateTableMetadata(self::config(), self::config()['database'],
+            [['TABLE_NAME' => $name, 'TABLE_TYPE' => $type]], $optIn);
+    }
+
 }
