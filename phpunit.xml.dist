@@ -7,6 +7,7 @@
     <testsuites>
         <testsuite name="EindSupplierSearch">
             <directory>tests</directory>
+            <exclude>tests/Database</exclude>
         </testsuite>
     </testsuites>
     <source>

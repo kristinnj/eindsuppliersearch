@@ -61,7 +61,7 @@ class Eindsuppliersearch extends Module
     {
         $this->name = 'eindsuppliersearch';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.0';
+        $this->version = '1.1.0';
         $this->author = 'Kristinn Johannesson';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -80,7 +80,8 @@ class Eindsuppliersearch extends Module
 
     public function install()
     {
-        return $this->installListDb() &&
+        return $this->installOfferBindingSchema() &&
+            $this->installListDb() &&
             $this->installSupplierDb() &&
             parent::install() &&
             $this->registerHook('displayTop') &&
@@ -91,6 +92,21 @@ class Eindsuppliersearch extends Module
             $this->registerHook('actionFrontControllerSetMedia') &&
             Configuration::updateValue(self::API_MODE_CONFIG_KEY, self::API_MODE_LIVE) &&
             Configuration::updateValue(self::GROUPED_SEARCH_UI_CONFIG_KEY, false);
+    }
+
+    /** Shared entry point for fresh installation and the versioned upgrade. */
+    public function installOfferBindingSchema(): bool
+    {
+        try {
+            \EindSupplierSearch\Infrastructure\Database\OfferBindingSchema::forPrestaShop()->install();
+
+            return true;
+        } catch (\Throwable $error) {
+            // Do not expose database exceptions, connection details or payloads.
+            $this->_errors[] = $this->l('Offer binding schema installation or verification failed. Existing records were preserved.');
+
+            return false;
+        }
     }
 
     private function installListDb()
@@ -153,6 +169,8 @@ class Eindsuppliersearch extends Module
 
     public function uninstall()
     {
+        // Ownership registry records intentionally survive uninstall and reinstall.
+        // Never pass OfferBindingSchema::TABLE to uninstallDb().
         return parent::uninstall() &&
             $this->uninstallDb($this->list_table) &&
             $this->uninstallDb($this->supplier_table) &&
