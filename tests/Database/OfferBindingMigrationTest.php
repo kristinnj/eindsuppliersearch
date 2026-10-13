@@ -264,4 +264,31 @@ final class OfferBindingMigrationTest extends TestCase
             \Db::$executor = null;
         }
     }
+
+    public function testScopedStrictModeRestoresEmptyNativeStyleSessionOnSuccessAndFailure(): void
+    {
+        $original = $this->pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
+        $this->mutate("SET SESSION sql_mode = ''");
+        try {
+            $this->schema()->installWithScopedStrictMode();
+            self::assertSame('', $this->pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn());
+            $this->insert();
+            $before = $this->pdo->query('SELECT * FROM test_eind_offer_binding')->fetchAll();
+            $this->schema()->installWithScopedStrictMode();
+            self::assertSame($before, $this->pdo->query('SELECT * FROM test_eind_offer_binding')->fetchAll());
+            self::assertSame('', $this->pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn());
+            $this->mutate('ALTER TABLE test_eind_offer_binding DROP INDEX uq_offer_identity');
+            try {
+                $this->schema()->installWithScopedStrictMode();
+                self::fail('Incompatible registry accepted.');
+            } catch (\RuntimeException $error) {
+                self::assertStringContainsString('Incompatible', $error->getMessage());
+            }
+            self::assertSame('', $this->pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn());
+            self::assertSame($before, $this->pdo->query('SELECT * FROM test_eind_offer_binding')->fetchAll());
+        } finally {
+            $this->mutate("SET SESSION sql_mode = X'" . bin2hex($original) . "'");
+        }
+    }
+
 }

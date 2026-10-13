@@ -98,7 +98,7 @@ class Eindsuppliersearch extends Module
     public function installOfferBindingSchema(): bool
     {
         try {
-            \EindSupplierSearch\Infrastructure\Database\OfferBindingSchema::forPrestaShop()->install();
+            \EindSupplierSearch\Infrastructure\Database\OfferBindingSchema::forPrestaShop()->installWithScopedStrictMode();
 
             return true;
         } catch (\Throwable $error) {

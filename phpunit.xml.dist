@@ -8,6 +8,7 @@
         <testsuite name="EindSupplierSearch">
             <directory>tests</directory>
             <exclude>tests/Database</exclude>
+            <exclude>tests/PrestaShopLifecycle</exclude>
         </testsuite>
     </testsuites>
     <source>

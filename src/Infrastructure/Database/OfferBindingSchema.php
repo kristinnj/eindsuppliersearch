@@ -36,6 +36,31 @@ final class OfferBindingSchema
         );
     }
 
+    /** PrestaShop clears session SQL mode; scope strictness to this migration only. */
+    public function installWithScopedStrictMode(): void
+    {
+        $settings = $this->read('SELECT @@SESSION.sql_mode AS mode');
+        if (count($settings) !== 1 || !isset($settings[0]['mode']) || !is_string($settings[0]['mode'])) {
+            throw new \RuntimeException('Offer binding schema SQL mode could not be read.');
+        }
+        $original = $settings[0]['mode'];
+        if (preg_match('/(?:^|,)(STRICT_TRANS_TABLES|STRICT_ALL_TABLES)(?:,|$)/', $original)) {
+            $this->install();
+            return;
+        }
+        $strict = $original === '' ? 'STRICT_ALL_TABLES' : $original . ',STRICT_ALL_TABLES';
+        try {
+            if (!(($this->execute)('SET SESSION sql_mode = ' . self::literal($strict)))) {
+                throw new \RuntimeException('Offer binding schema strict SQL mode could not be enabled.');
+            }
+            $this->install();
+        } finally {
+            if (!(($this->execute)('SET SESSION sql_mode = ' . self::literal($original)))) {
+                throw new \RuntimeException('Offer binding schema original SQL mode could not be restored.');
+            }
+        }
+    }
+
     public function install(): void
     {
         $settings = $this->read('SELECT DATABASE() AS db, @@sql_mode AS mode,
