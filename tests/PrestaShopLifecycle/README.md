@@ -107,3 +107,29 @@ failure it displays errors, disables the module, advances registered version to
 exits 2 **after owned-resource cleanup**. This is a detected core behavior, not a
 silently skipped test. P0-02D acceptance remains incomplete. Core is not modified.
 The report distinguishes scenario observations from the failed acceptance gate.
+
+## P0-02D.1 retry diagnostics
+
+Read-only observations now include structural verification and shop enablement.
+After the known CLI failure the harness checks real same-version discovery in a
+separate process, reruns the supported CLI and compares complete observed state.
+It also directly retries the migration to confirm incompatible storage remains
+rejected and unchanged. The known failing acceptance gate remains unchanged.
+See the workspace [root-cause report](../../../../docs/development/module-upgrade-integrity-p0-02d1.md).
+
+## P0-02D.2 independent verification acceptance
+
+The existing lifecycle sequence now additionally invokes the standalone gate in
+separate read-only containers, with read-only application mounts and a dedicated
+SELECT/SHOW VIEW account. Test setup creates canonical definer metadata views to
+make MariaDB trigger absence observable without giving the verifier TRIGGER/DDL
+privileges. A capability view proves the definer still has global trigger visibility.
+Verifier processes never create them. Fixtures/grants run only in owned storage.
+
+All persistent table/view rows and DDL are hashed before/after each gate process.
+Write, INSERT and CREATE probes on the reader must be denied. Gate evidence
+includes actual JSON and process exit codes, success/failure of schema independent
+of enablement, real active-shop enablement, malformed configuration, denied
+credentials/metadata, disconnected database and missing trusted metadata views.
+`verification_gate.status` is separate from the unchanged original acceptance
+failure. See [command documentation](../../bin/README.md).

@@ -254,9 +254,31 @@ try {
             $snapshot = registryState($pdo);
             $result = ['success' => installSchema(), 'unchanged' => $snapshot === registryState($pdo)];
             break;
+        case 'retry-discovery':
+            expect(moduleVersion($pdo) === '1.1.0', 'Retry requires advanced registered version.');
+            foreach (Module::getModulesOnDisk() as $onDisk) {
+                if ($onDisk->name === 'eindsuppliersearch') {
+                    $discovered = Module::initUpgradeModule($onDisk);
+                    break;
+                }
+            }
+            $cache = (new ReflectionProperty(Module::class, 'modules_cache'))->getValue();
+            $result = ['discovered' => $discovered,
+                'available' => $cache['eindsuppliersearch']['upgrade']['available_upgrade'],
+                'function_loaded' => function_exists('upgrade_module_1_1_0')];
+            expect(!$discovered && $result['available'] === 0 && !$result['function_loaded'], 'Retry unexpectedly discovered migration.');
+            break;
         case 'observe':
+            $valid = false;
+            try {
+                $valid = schemaValid();
+            } catch (RuntimeException $error) {
+                // Incompatible/missing schema remains failed diagnostic evidence.
+            }
             $result = ['version' => moduleVersion($pdo),
                 'enabled' => (bool) $pdo->query("SELECT active FROM life_module WHERE name='eindsuppliersearch'")->fetchColumn(),
+                'schema_valid' => $valid,
+                'shop_enabled_rows' => (int) $pdo->query("SELECT COUNT(*) FROM life_module_shop WHERE id_module=(SELECT id_module FROM life_module WHERE name='eindsuppliersearch')")->fetchColumn(),
                 'registry' => registryState($pdo), 'configuration' => configurationState($pdo), 'module_records' => moduleRecords($pdo)];
             break;
         case 'state':

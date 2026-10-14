@@ -35,6 +35,8 @@ def main():
     resources = []
     report = {"run": run_id, "historical_revision": HISTORICAL, "scenarios": []}
     assertions = 0
+    gate_cases = []
+    report["verification_gate"] = {"status": "incomplete", "cases": gate_cases}
     worker_assertions = 0
     counts_lock = threading.Lock()
 
@@ -80,6 +82,41 @@ def main():
         with counts_lock:
             worker_assertions += result.get("worker_checks", 0)
         return result
+
+    def support(action, *parameters, payload=None):
+        verify_topology()
+        command = ["docker", "exec", "-i", app, "php", "/harness/gate-support.php", action, *parameters]
+        result = subprocess.run(command, input=json.dumps(payload) if payload is not None else "", text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        if result.returncode:
+            raise RuntimeError("Isolated gate support failed")
+        return json.loads(result.stdout)
+
+    def gate(name, expected, config="gate.json", offline=False):
+        verify_topology()
+        before = support("snapshot")
+        result = subprocess.run(["docker", "run", "--rm", "--read-only", "--network", "none" if offline else network,
+                                 "--label", "hlutiris.lifecycle.run=" + run_id,
+                                 "-v", volumes[1] + ":/var/www/html:ro",
+                                 "-e", "EIND_VERIFY_CONFIG=/var/www/html/" + config,
+                                 "--entrypoint", "php", args.image,
+                                 "/var/www/html/modules/eindsuppliersearch/bin/verify-module-upgrade.php", "--json"],
+                                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+        evidence = json.loads(result.stdout)
+        report.setdefault("gate_diagnostics", []).append({"name": name, "exit": result.returncode, "evidence": evidence})
+        check(result.returncode == expected and evidence["exit_code"] == expected,
+              "Independent gate wrong exit: " + name)
+        check(evidence["status"] == ("PASS" if expected == 0 else "FAIL") and not result.stderr,
+              "Independent gate output contract failed: " + name)
+        check(before == support("snapshot"), "Verifier mutated persistent database: " + name)
+        if name.startswith("registry defect") or name.startswith("failed legacy") or name.startswith("false-success"):
+            check(evidence.get("registry", {}).get("schema_valid") is False,
+                  "Registry defect was not independently detected: " + name)
+        if name == "disabled with valid registry":
+            check(evidence["registry"]["schema_valid"] is True and evidence["module_enabled"] is False,
+                  "Disabled canonical installation was not checked independently")
+        gate_cases.append({"name": name, "exit_code": result.returncode, "json": evidence,
+                           "database_unchanged": True, "filesystem_read_only": True})
 
     def check(condition, message):
         nonlocal assertions
@@ -155,6 +192,28 @@ def main():
         check(baseline["prestashop"] == "9.1.0", "Expected real PrestaShop 9.1.0")
         report["baseline"] = baseline
         record("genuine PrestaShop bootstrap and isolated fixture baseline", baseline)
+        # Dedicated accounts created only by the owned disposable server administrator.
+        reader_password = secrets.token_hex(24)
+        secrets_to_redact.append(reader_password)
+        sql = (f"CREATE USER 'gate_reader'@'%' IDENTIFIED BY '{reader_password}';"
+               f"GRANT SELECT, SHOW VIEW ON `{db_name}`.* TO 'gate_reader'@'%';"
+               f"CREATE SQL SECURITY DEFINER VIEW `{db_name}`.life_eind_upgrade_trigger_metadata AS SELECT TRIGGER_SCHEMA, EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = '{db_name}';"
+               f"CREATE SQL SECURITY DEFINER VIEW `{db_name}`.life_eind_upgrade_metadata_capability AS SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES;"
+               f"CREATE USER 'gate_limited'@'%' IDENTIFIED BY '{reader_password}';"
+               f"GRANT SELECT ON `{db_name}`.life_module TO 'gate_limited'@'%';")
+        setup = subprocess.run(["docker", "exec", "-i", db, "sh", "-c",
+                                'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'],
+                               input=sql, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if setup.returncode:
+            raise RuntimeError("Disposable reader provisioning failed")
+        config = {"host": db, "port": 3306, "database": db_name, "prefix": "life_",
+                  "user": "gate_reader", "password": reader_password, "server_hostname": db, "metadata_definer": "root@localhost"}
+        support("config", payload=config)
+        support("config", "gate-bad.json", payload={**config, "password": "invalid-test-password"})
+        support("config", "gate-limited.json", payload={**config, "user": "gate_limited"})
+        support("config", "gate-unavailable.json", payload={**config, "server_hostname": "wrong-server"})
+        support("config", "gate-invalid.json", payload={**config, "prefix": "bad;prefix"})
+
 
         worker("stage", "current")
         fresh = worker("install", "1.1.0")
@@ -162,9 +221,17 @@ def main():
         check(fresh["registry_exists"] and fresh["registry_count"] == 0 and fresh["schema_valid"], "Fresh registry not empty/correct")
         record("fresh 1.1.0 installation and empty registry", fresh)
 
+        gate("fresh empty registry", 0)
+        check(support("probe")["write_ddl_denials"] == 3, "Reader has mutation privileges")
+        gate("database unavailable", 2, offline=True)
+        gate("invalid credentials", 2, "gate-bad.json")
+        gate("insufficient metadata visibility", 2, "gate-limited.json")
+        gate("server identity mismatch", 2, "gate-unavailable.json")
+        gate("invalid configuration", 2, "gate-invalid.json")
         repeat = worker("repeat")
         check(repeat["unchanged"] and repeat["schema_valid"], "Repeated migration changed fixtures")
         record("migration retries preserve exact bytes and records", repeat)
+        gate("populated canonical registry", 0)
         uninstall = worker("uninstall")
         check(uninstall["success"] and uninstall["retained"] and uninstall["cleanup_valid"], "Uninstall/retention failed")
         record("native uninstall retains registry and performs expected cleanup", uninstall)
@@ -172,13 +239,16 @@ def main():
         check(reinstall["success"] and reinstall["retained"] and reinstall["version"] == "1.1.0", "Retained-registry reinstall failed")
         record("native reinstall accepts retained registry", reinstall)
 
+        gate("retained valid registry after reinstall", 0)
         historical_evidence = fresh_baseline()
         record("genuine historical 1.0.0 installation", historical_evidence)
+        gate("historical registration current source", 1)
         upgrade = worker("upgrade", "success")
         check(upgrade["success"] and upgrade["version"] == "1.1.0", "Native runner/version persistence failed")
         check(upgrade["available"] == 1 and upgrade["executed"] == 1 and upgrade["upgraded_to"] == "1.1.0", "Upgrade script was not discovered/executed")
         check(upgrade["schema_valid"] and upgrade["configuration_unchanged"] and upgrade["module_records_unchanged"] and upgrade["enabled"], "Upgrade changed configuration/schema/enablement")
         record("native 1.0.0 to 1.1.0 upgrade discovery and persistence", upgrade)
+        gate("successful native upgrade", 0)
         direct = worker("direct")
         check(direct["success"] and direct["unchanged"], "Direct upgrade function idempotence failed")
         record("upgrade function independently verified", direct)
@@ -202,6 +272,7 @@ def main():
             check(not failure["enabled"] and failure["registry_unchanged"] and failure["errors"], "Failure did not disable/preserve/report")
             check(failure["configuration_unchanged"] and failure["module_records_unchanged"], "Failure changed existing configuration")
             record("native upgrade failure preserves incompatible " + defect, failure)
+            gate("failed legacy upgrade " + defect, 1)
 
         # Exercise the supported high-level CLI separately from the legacy runner.
         fresh_baseline()
@@ -214,6 +285,7 @@ def main():
               "Supported CLI success path failed")
         check(cli_before["configuration"] == cli_after["configuration"] and cli_before["module_records"] == cli_after["module_records"], "CLI success changed module configuration")
         record("supported native CLI successful historical upgrade", cli_after)
+        gate("successful supported CLI upgrade", 0)
 
         fresh_baseline()
         worker("incompatible", "index")
@@ -232,6 +304,48 @@ def main():
         report["core_cli_failure"] = {"version_advanced_on_failure": core_failure, "exit_code": 0,
                                       "output": cli_failure_output[-3000:], "evidence": cli_after}
         record("supported native CLI failure behavior observed", report["core_cli_failure"])
+        gate("false-success CLI upgrade", 1)
+
+        if core_failure:
+            discovery = worker("retry-discovery")
+            retry_before = worker("observe")
+            verify_topology()
+            retry_output = docker("exec", app, "php", "/var/www/html/bin/console", "prestashop:module",
+                                  "upgrade", "eindsuppliersearch", "--env=prod", "--no-debug")
+            retry_after = worker("observe")
+            check(retry_before == retry_after, "Retry changed failed upgrade state")
+            check(not retry_after["schema_valid"] and not retry_after["enabled"]
+                  and retry_after["shop_enabled_rows"] == 0, "Retry unexpectedly recovered schema/enablement")
+            record("supported CLI retry skips pending migration", {
+                "discovery": discovery, "before": retry_before, "after": retry_after,
+                "exit_code": 0, "output": retry_output[-3000:]})
+            gate("false-success same-version CLI retry", 1)
+            direct_failure = worker("direct")
+            check(not direct_failure["success"] and direct_failure["unchanged"],
+                  "Direct retry repaired incompatible registry")
+            record("direct migration retry rejects incompatible registry", direct_failure)
+
+        worker("reset")
+        gate("missing registration and registry", 1)
+        worker("install", "1.1.0")
+        support("fixture", "metadata")
+        gate("source metadata disagreement", 1)
+        worker("stage", "current")
+        support("fixture", "multishop")
+        gate("missing required active shop", 1)
+        support("fixture", "multishop-enable")
+        gate("all active shops enabled", 0)
+        support("fixture", "disable")
+        gate("disabled with valid registry", 1)
+        # Disposable fixture resets never edit registered version history.
+        for defect in ["limit", "trigger", "missing"]:
+            worker("reset")
+            worker("install", "1.1.0")
+            support("fixture", defect)
+            gate("registry defect " + defect, 1)
+        support("fixture", "metadata-view-missing")
+        gate("missing trusted metadata view", 2)
+        report["verification_gate"] = {"status": "passed", "cases": gate_cases}
 
         report["status"] = "incomplete_core_failure" if core_failure else "passed"
         report["assertions"] = assertions
