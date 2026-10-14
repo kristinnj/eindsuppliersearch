@@ -70,7 +70,7 @@ final class OfferBindingSchema
             || !preg_match('/(?:^|,)(STRICT_TRANS_TABLES|STRICT_ALL_TABLES)(?:,|$)/', $settings['mode'] ?? '')) {
             throw new \RuntimeException('Offer binding schema requires a database, strict SQL mode and enforced constraints.');
         }
-        $lock = self::literal('eob:' . substr(hash('sha256', $settings['db'] . ':' . $this->table), 0, 56));
+        $lock = self::literal($this->migrationLockName($settings['db']));
         if ((int) ($this->read('SELECT GET_LOCK(' . $lock . ', 10) AS acquired')[0]['acquired'] ?? 0) !== 1) {
             throw new \RuntimeException('Offer binding schema lock could not be acquired.');
         }
@@ -84,6 +84,12 @@ final class OfferBindingSchema
         } finally {
             $this->read('SELECT RELEASE_LOCK(' . $lock . ') AS released');
         }
+    }
+
+    /** Shared with explicit recovery; exact existing lock identity is unchanged. */
+    public function migrationLockName(string $database): string
+    {
+        return 'eob:' . substr(hash('sha256', $database . ':' . $this->table), 0, 56);
     }
 
     /** Existing incompatible tables are rejected without ALTER, DROP or data repair. */

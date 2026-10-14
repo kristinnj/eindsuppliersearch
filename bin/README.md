@@ -180,3 +180,9 @@ container suites each 373 tests / 1,240 assertions; disposable database suite
 original lifecycle gate still exits 2 (18 scenarios / 134 orchestrator assertions /
 394 worker assertions). The workspace root-cause report contains exact case
 results, evidence paths and limits; no active deployment was invoked.
+
+P0-02D.3 adds a **separately invoked** bounded recovery command. Its default is
+read-only and it never runs from verification or ordinary module operations.
+See [RECOVERY.md](RECOVERY.md) for eligibility, process-local operator confirmation,
+CREATE-only credentials, locking and the distinction from deployment readiness.
+The verifier and its exit/enablement policy are unchanged.

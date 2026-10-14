@@ -133,3 +133,21 @@ of enablement, real active-shop enablement, malformed configuration, denied
 credentials/metadata, disconnected database and missing trusted metadata views.
 `verification_gate.status` is separate from the unchanged original acceptance
 failure. See [command documentation](../../bin/README.md).
+
+## P0-02D.3 explicit recovery acceptance
+
+Additional isolated accounts have database SELECT/SHOW VIEW plus CREATE only on
+the canonical registry, or native upgrade DML without CREATE. The latter reproduces
+a genuine supported CLI false success with missing storage: version 1.1.0,
+disabled module, no registry. The harness restores the original native connection
+configuration before guarded observations and never rewrites registered versions.
+
+Recovery runs in separate read-only containers/application mounts, with live
+challenge-response confirmation. Dry-run, missing authorization, ambiguous storage,
+canonical empty creation, repeated/compatible populated no-op and populated
+incompatible refusal compare protected/complete persistent snapshots. Two pending
+independently authorized recovery processes must produce exactly one creation.
+The post-recovery verification CLI remains unchanged and still rejects disablement.
+`recovery_cases`, `concurrent_recovery` and `recovery_acceptance` are separate from
+`verification_gate` and the unchanged upstream P0-02D failure. See
+[recovery documentation](../../bin/RECOVERY.md).

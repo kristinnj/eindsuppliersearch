@@ -118,6 +118,54 @@ def main():
         gate_cases.append({"name": name, "exit_code": result.returncode, "json": evidence,
                            "database_unchanged": True, "filesystem_read_only": True})
 
+    def recovery(name, expected, authorize=False, dry=False, mutates=False):
+        verify_topology()
+        before = support("protected-snapshot" if mutates else "snapshot")
+        command = ["docker", "run", "--rm", "-i", "--read-only", "--network", network,
+                   "--label", "hlutiris.lifecycle.run=" + run_id, "-v", volumes[1] + ":/var/www/html:ro",
+                   "-e", "EIND_VERIFY_CONFIG=/var/www/html/gate.json", "-e", "EIND_RECOVERY_CONFIG=/var/www/html/recovery.json",
+                   "--entrypoint", "php", args.image, "/var/www/html/modules/eindsuppliersearch/bin/recover-module-upgrade.php",
+                   "--json", "--dry-run" if dry else "--recover"]
+        if authorize:
+            process = subprocess.Popen(command, text=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            challenge_line = process.stderr.readline()
+            challenge = json.loads(challenge_line)["authorization_challenge"]
+            output, error = process.communicate(json.dumps({"token": challenge["token"], "confirmation": challenge["confirmation"]}) + "\n", timeout=60)
+            exit_code = process.returncode
+        else:
+            process = subprocess.run(command, input="", text=True, capture_output=True, timeout=60)
+            output, error, exit_code = process.stdout, process.stderr, process.returncode
+        evidence = json.loads(output)
+        report.setdefault("recovery_cases", []).append({"name": name, "exit_code": exit_code, "json": evidence})
+        check(exit_code == expected and evidence["exit_code"] == expected, "Wrong recovery result: " + name)
+        check(evidence["mutation_performed"] is mutates, "Wrong recovery mutation report: " + name)
+        check(before == support("protected-snapshot" if mutates else "snapshot"), "Recovery changed protected data: " + name)
+        check(not evidence["deployment_ready"], "Recovery claimed deployment readiness")
+        return evidence
+
+    def concurrent_recovery():
+        verify_topology()
+        before = support("protected-snapshot")
+        command = ["docker", "run", "--rm", "-i", "--read-only", "--network", network,
+                   "--label", "hlutiris.lifecycle.run=" + run_id, "-v", volumes[1] + ":/var/www/html:ro",
+                   "-e", "EIND_VERIFY_CONFIG=/var/www/html/gate.json", "-e", "EIND_RECOVERY_CONFIG=/var/www/html/recovery.json",
+                   "--entrypoint", "php", args.image, "/var/www/html/modules/eindsuppliersearch/bin/recover-module-upgrade.php", "--recover", "--json"]
+        pending = []
+        for _ in range(2):
+            process = subprocess.Popen(command, text=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            challenge = json.loads(process.stderr.readline())["authorization_challenge"]
+            pending.append((process, challenge))
+        def confirm(pair):
+            process, challenge = pair
+            output, _ = process.communicate(json.dumps({"token": challenge["token"], "confirmation": challenge["confirmation"]}) + "\n", timeout=60)
+            return {"exit_code": process.returncode, "json": json.loads(output)}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(confirm, pending))
+        check(all(result["exit_code"] in [0, 1] for result in results), "Concurrent recovery had operational failure")
+        check(sum(result["json"]["mutation_performed"] for result in results) == 1, "Concurrent recovery created more than once")
+        check(before == support("protected-snapshot"), "Concurrent recovery changed protected state")
+        report["concurrent_recovery"] = results
+
     def check(condition, message):
         nonlocal assertions
         assertions += 1
@@ -199,6 +247,11 @@ def main():
                f"GRANT SELECT, SHOW VIEW ON `{db_name}`.* TO 'gate_reader'@'%';"
                f"CREATE SQL SECURITY DEFINER VIEW `{db_name}`.life_eind_upgrade_trigger_metadata AS SELECT TRIGGER_SCHEMA, EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = '{db_name}';"
                f"CREATE SQL SECURITY DEFINER VIEW `{db_name}`.life_eind_upgrade_metadata_capability AS SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES;"
+               f"CREATE USER 'gate_recovery'@'%' IDENTIFIED BY '{reader_password}';"
+               f"GRANT SELECT, SHOW VIEW ON `{db_name}`.* TO 'gate_recovery'@'%';"
+               f"GRANT CREATE ON `{db_name}`.life_eind_offer_binding TO 'gate_recovery'@'%';"
+               f"CREATE USER 'upgrade_no_create'@'%' IDENTIFIED BY '{reader_password}';"
+               f"GRANT SELECT, INSERT, UPDATE, DELETE ON `{db_name}`.* TO 'upgrade_no_create'@'%';"
                f"CREATE USER 'gate_limited'@'%' IDENTIFIED BY '{reader_password}';"
                f"GRANT SELECT ON `{db_name}`.life_module TO 'gate_limited'@'%';")
         setup = subprocess.run(["docker", "exec", "-i", db, "sh", "-c",
@@ -209,6 +262,7 @@ def main():
         config = {"host": db, "port": 3306, "database": db_name, "prefix": "life_",
                   "user": "gate_reader", "password": reader_password, "server_hostname": db, "metadata_definer": "root@localhost"}
         support("config", payload=config)
+        support("config", "recovery.json", payload={**config, "user": "gate_recovery"})
         support("config", "gate-bad.json", payload={**config, "password": "invalid-test-password"})
         support("config", "gate-limited.json", payload={**config, "user": "gate_limited"})
         support("config", "gate-unavailable.json", payload={**config, "server_hostname": "wrong-server"})
@@ -222,6 +276,7 @@ def main():
         record("fresh 1.1.0 installation and empty registry", fresh)
 
         gate("fresh empty registry", 0)
+        recovery("enabled module recovery blocked", 1)
         check(support("probe")["write_ddl_denials"] == 3, "Reader has mutation privileges")
         gate("database unavailable", 2, offline=True)
         gate("invalid credentials", 2, "gate-bad.json")
@@ -243,6 +298,7 @@ def main():
         historical_evidence = fresh_baseline()
         record("genuine historical 1.0.0 installation", historical_evidence)
         gate("historical registration current source", 1)
+        recovery("historical version recovery blocked", 1)
         upgrade = worker("upgrade", "success")
         check(upgrade["success"] and upgrade["version"] == "1.1.0", "Native runner/version persistence failed")
         check(upgrade["available"] == 1 and upgrade["executed"] == 1 and upgrade["upgraded_to"] == "1.1.0", "Upgrade script was not discovered/executed")
@@ -343,6 +399,40 @@ def main():
             worker("install", "1.1.0")
             support("fixture", defect)
             gate("registry defect " + defect, 1)
+        # Genuine missing-registry failure through supported CLI with CREATE permission denied.
+        fresh_baseline()
+        cli_missing = support("cli-missing-failure", payload={"password": reader_password})
+        missing_state = worker("observe")
+        check(cli_missing["exit_code"] == 0 and missing_state["version"] == "1.1.0"
+              and not missing_state["enabled"] and not missing_state["registry"]["exists"],
+              "Missing-registry CLI defect was not reproduced")
+        report["missing_registry_cli_failure"] = {"cli": cli_missing, "state": missing_state}
+        gate("false-success missing registry", 1)
+        recovery("eligible dry-run", 0, dry=True)
+        recovery("authorization absent", 1)
+        support("fixture", "alternate")
+        recovery("ambiguous ownership table", 1, dry=True)
+        support("fixture", "alternate-remove")
+        recovered = recovery("authorized empty registry creation", 0, authorize=True, mutates=True)
+        check(recovered["verification"]["exit_code"] == 1 and recovered["registry_after"]["rows"] == 0,
+              "Recovery gate/empty postcondition incorrect")
+        gate("disabled after successful registry recovery", 1)
+        recovery("repeated recovery no-op", 0)
+        worker("repeat")
+        recovery("compatible populated registry no-op", 0)
+        support("fixture", "missing")
+        concurrent_recovery()
+        recovery("concurrent recovery retry", 0)
+        worker("reset")
+        worker("stage", "historical")
+        worker("install", "1.0.0")
+        worker("stage", "current")
+        worker("incompatible", "index")
+        cli_incompatible = docker("exec", app, "php", "/var/www/html/bin/console", "prestashop:module",
+                                  "upgrade", "eindsuppliersearch", "--env=prod", "--no-debug")
+        recovery("populated incompatible registry blocked", 1)
+        report["recovery_acceptance"] = "passed"
+
         support("fixture", "metadata-view-missing")
         gate("missing trusted metadata view", 2)
         report["verification_gate"] = {"status": "passed", "cases": gate_cases}
