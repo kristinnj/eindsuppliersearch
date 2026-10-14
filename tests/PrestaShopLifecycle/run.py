@@ -21,6 +21,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--disposable", action="store_true", required=True)
     parser.add_argument("--image", default="prestashop-dev-prestashop:latest")
+    parser.add_argument("--expected-version", choices=["9.1.0", "9.1.5", "9.2.0"], default="9.1.0")
+    parser.add_argument("--database-image", default="mariadb:11.4")
     args = parser.parse_args()
     run_id = "hlutiris-p002d-" + secrets.token_hex(6)
     directory = Path(tempfile.mkdtemp(prefix=run_id + "-"))
@@ -33,7 +35,7 @@ def main():
     admin_password, token = secrets.token_hex(24), secrets.token_hex(24)
     secrets_to_redact = [password, root_password, admin_password, token]
     resources = []
-    report = {"run": run_id, "historical_revision": HISTORICAL, "scenarios": []}
+    report = {"run": run_id, "historical_revision": HISTORICAL, "scenarios": [], "expected_version": args.expected_version, "application_image": args.image, "database_image": args.database_image}
     assertions = 0
     gate_cases = []
     report["verification_gate"] = {"status": "incomplete", "cases": gate_cases}
@@ -196,7 +198,7 @@ def main():
         db_env = directory / "database.env"
         db_env.write_text(f"MARIADB_ROOT_PASSWORD={root_password}\nMARIADB_DATABASE={db_name}\nMARIADB_USER=lifecycle_test\nMARIADB_PASSWORD={password}\n")
         app_env = directory / "application.env"
-        app_env.write_text(f"HLUTIRIS_LIFECYCLE_DISPOSABLE=YES\nHLUTIRIS_LIFECYCLE_RUN={run_id}\nHLUTIRIS_LIFECYCLE_TOKEN={token}\nHLUTIRIS_LIFECYCLE_DATABASE={db_name}\nHLUTIRIS_LIFECYCLE_HOST={db}\nHLUTIRIS_LIFECYCLE_USER=lifecycle_test\nHLUTIRIS_LIFECYCLE_PASSWORD={password}\nHLUTIRIS_LIFECYCLE_ADMIN_PASSWORD={admin_password}\nXDEBUG_MODE=off\n")
+        app_env.write_text(f"HLUTIRIS_LIFECYCLE_EXPECTED_VERSION={args.expected_version}\nHLUTIRIS_LIFECYCLE_DISPOSABLE=YES\nHLUTIRIS_LIFECYCLE_RUN={run_id}\nHLUTIRIS_LIFECYCLE_TOKEN={token}\nHLUTIRIS_LIFECYCLE_DATABASE={db_name}\nHLUTIRIS_LIFECYCLE_HOST={db}\nHLUTIRIS_LIFECYCLE_USER=lifecycle_test\nHLUTIRIS_LIFECYCLE_PASSWORD={password}\nHLUTIRIS_LIFECYCLE_ADMIN_PASSWORD={admin_password}\nXDEBUG_MODE=off\n")
         for path in [db_env, app_env]:
             os.chmod(path, 0o600)
         label = "hlutiris.lifecycle.run=" + run_id
@@ -208,7 +210,7 @@ def main():
             docker("volume", "create", "--label", label, volume)
             resources.append(("volume", volume))
         docker("run", "-d", "--name", db, "--hostname", db, "--label", label,
-               "--network", network, "--env-file", str(db_env), "-v", volumes[0] + ":/var/lib/mysql", "mariadb:11.4")
+               "--network", network, "--env-file", str(db_env), "-v", volumes[0] + ":/var/lib/mysql", args.database_image)
         resources.append(("container", db))
         docker("run", "-d", "--name", app, "--hostname", app, "--label", label,
                "--network", network, "--env-file", str(app_env), "-v", volumes[1] + ":/var/www/html",
@@ -237,7 +239,7 @@ def main():
         resources.remove(("network", egress))
         (directory / "installer.log").write_text(output)
         baseline = worker("baseline")
-        check(baseline["prestashop"] == "9.1.0", "Expected real PrestaShop 9.1.0")
+        check(baseline["prestashop"] == args.expected_version, "Expected exact configured PrestaShop release")
         report["baseline"] = baseline
         record("genuine PrestaShop bootstrap and isolated fixture baseline", baseline)
         # Dedicated accounts created only by the owned disposable server administrator.

@@ -12,7 +12,9 @@ import time
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disposable', action='store_true', required=True)
-    parser.parse_args()
+    parser.add_argument('--image', default='prestashop-dev-prestashop:latest')
+    parser.add_argument('--database-image', default='mariadb:11.4')
+    args = parser.parse_args()
     suffix = secrets.token_hex(6)
     run = 'hlutiris-gate-db-' + suffix
     database = 'hlutiris_offer_binding_test_' + suffix
@@ -40,7 +42,7 @@ def main():
             docker('volume', 'create', '--label', label, volume)
             resources.append(('volume', volume))
             docker('run', '-d', '--name', server, '--hostname', server, '--label', label,
-                   '--network', network, '--env-file', str(env), '-v', volume + ':/var/lib/mysql', 'mariadb:11.4')
+                   '--network', network, '--env-file', str(env), '-v', volume + ':/var/lib/mysql', args.database_image)
             resources.append(('container', server))
             data = json.loads(docker('inspect', server).stdout)[0]
             if data['HostConfig']['PortBindings'] or set(data['NetworkSettings']['Networks']) != {network} \
@@ -54,7 +56,7 @@ def main():
             # Guards run before any suite mutation; no native installation is used.
             result = docker('run', '--rm', '--read-only', '--network', network, '--label', label,
                             '--env-file', str(testenv), '-v', str(Path(__file__).resolve().parents[2]) + ':/workspace/modules/eindsuppliersearch:ro',
-                            '-w', '/workspace/modules/eindsuppliersearch', '--entrypoint', 'php', 'prestashop-dev-prestashop:latest',
+                            '-w', '/workspace/modules/eindsuppliersearch', '--entrypoint', 'php', args.image,
                             'vendor-dev/bin/phpunit', '-c', 'phpunit.database.xml.dist', '--do-not-cache-result', check=False)
             output = result.stdout + result.stderr
             for secret in [password, root_password]:

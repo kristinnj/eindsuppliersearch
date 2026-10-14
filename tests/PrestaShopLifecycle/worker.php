@@ -116,7 +116,8 @@ try {
     $_SERVER['SERVER_NAME'] = 'lifecycle.invalid';
     $_SERVER['REQUEST_URI'] = '/';
     require '/var/www/html/config/config.inc.php';
-    expect(_PS_VERSION_ === '9.1.0', 'Unexpected native core version.');
+    $expectedVersion = getenv('HLUTIRIS_LIFECYCLE_EXPECTED_VERSION') ?: '9.1.0';
+    expect(in_array($expectedVersion, ['9.1.0', '9.1.5', '9.2.0'], true) && _PS_VERSION_ === $expectedVersion, 'Unexpected native core version.');
     expect(_DB_NAME_ === getenv('HLUTIRIS_LIFECYCLE_DATABASE') && _DB_SERVER_ === getenv('HLUTIRIS_LIFECYCLE_HOST'), 'Core connection refused.');
     Context::getContext()->employee = new Employee(1);
     $kernel = new AdminKernel('prod', false);

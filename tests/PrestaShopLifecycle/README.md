@@ -9,9 +9,12 @@ python3 tests/PrestaShopLifecycle/run.py --disposable
 Requires Docker access, Python 3.12+ (safe tar extraction), the local
 `prestashop-dev-prestashop:latest` image containing pristine PrestaShop 9.1.0,
 `mariadb:11.4`, and committed historical module revision `0b8868b` (version 1.0.0).
-Override the application image with `--image` only when it contains the same
-pristine installer layout. The harness checks the actual installed version and
-refuses a different release. Missing history or failed installation is a failure,
+For an isolated compatibility assessment, pass an immutable image reference with
+`--image`, an immutable MariaDB reference with `--database-image`, and the matching
+`--expected-version` (`9.1.0`, `9.1.5`, or `9.2.0`; default `9.1.0`). The application
+image must contain the same pristine installer layout. The harness checks the
+actual installed version and refuses a mismatch. These options do not change the
+original upstream-defect acceptance expectations or isolation guards. Missing history or failed installation is a failure,
 not permission to edit registered versions or claim an upgrade passed.
 
 This suite is a Python orchestrator with separate PHP processes running genuine
