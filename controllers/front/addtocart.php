@@ -28,13 +28,15 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
         try {
             $this->denyInvalidRequest();
 
-            $supplierId = (int) Tools::getValue('supplierId');
+            $supplierValue = Tools::getValue('supplierId');
             $productReference = Tools::getValue('product_reference');
-            $quantity = max(1, (int) Tools::getValue('quantity'));
             $orderCode = Tools::getValue('order_code');
+            $supplierId = (is_string($supplierValue) || is_int($supplierValue))
+                ? filter_var($supplierValue, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) : false;
 
-            if ($supplierId <= 0 || $productReference === null || $productReference === '') {
-                return $this->renderJson(false, $this->module->l('Missing supplier or product information.'));
+            if ($supplierId === false || !is_string($productReference) || !ctype_digit($productReference)
+                || ($orderCode !== false && $orderCode !== null && !is_string($orderCode))) {
+                return $this->renderJson(false, $this->orderingUnavailableMessage());
             }
 
             $cookie = $this->context->cookie;
@@ -43,11 +45,6 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
             }
             if (empty($cookie->eind_session_id)) {
                 return $this->renderJson(false, $this->module->l('Search session expired. Please run the search again.'));
-            }
-
-            $taxRuleId = $this->resolveTaxRuleId();
-            if ($taxRuleId <= 0) {
-                return $this->renderJson(false, $this->module->l('The tax rule for supplier products is not configured.'));
             }
 
             // Supplier-strict resolution (see
@@ -80,84 +77,29 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
                 return $this->renderJson(false, $this->module->l('Unable to locate the product in the cached supplier response.'));
             }
 
-            $product = $resolution->getProduct();
-
-            $category = (int) Configuration::get('EIND_SUPPLIERSEARCH_DEFAULT_CATEGORY');
-            if ($category <= 0) {
-                $category = (int) Configuration::get('PS_HOME_CATEGORY');
-            }
-
-            $productId = $this->cartHelper->getIdBySupplierReference($product['OrderCode']);
-            if (!$productId) {
-                $productId = $this->cartHelper->insertNewProduct($product, $supplierId, $taxRuleId, $category);
-                if (!$productId) {
-                    return $this->renderJson(false, $this->module->l('Failed to create the product locally.'));
-                }
-
-                if (!empty($product['Images'][0])) {
-                    $primary = $product['Images'][0]['PrimaryURL'] ?? '';
-                    $secondary = $product['Images'][0]['SecondaryURL'] ?? '';
-                    if (!$this->cartHelper->addProductImage($productId, $primary, 'jpg') && $secondary) {
-                        $this->cartHelper->addProductImage($productId, $secondary, 'jpg');
-                    }
-                }
-
-                Search::indexation(false);
-            } else {
-                if (!$this->cartHelper->updateExistingProduct($productId, $product, $taxRuleId)) {
-                    return $this->renderJson(false, $this->module->l('Failed to update the existing product.'));
-                }
-            }
-
-            $this->cartHelper->updateStock($productId, 0, $product['Stock']['Level']);
-
-            $priceRows = isset($product['Prices']) && is_array($product['Prices']) ? $product['Prices'] : [];
-            $this->cartHelper->syncSpecificPrices($productId, $priceRows);
-
-            $this->cartHelper->addToCart($productId, $quantity, 0);
-
-            $cartQuantity = (int) $this->context->cart->getNbProducts((int) $this->context->cart->id);
-
-            return $this->renderJson(
-                true,
-                $this->module->l('Product added to the cart.'),
-                [
-                    'product_id' => (int) $productId,
-                    'cart_quantity' => $cartQuantity,
-                ]
-            );
+            // Cached selection is not ownership evidence. Runtime provenance,
+            // verified native reuse and a write-time safety boundary are not wired.
+            // Contain ALL supplier ordering, including apparently ACTIVE bindings,
+            // before native lookup, creation, updates or cart mutation.
+            return $this->renderJson(false, $this->orderingUnavailableMessage());
         } catch (\Throwable $exception) {
             \PrestaShopLogger::addLog(
-                sprintf('[EindSupplierSearch] Add-to-cart failed: %s', $exception->getMessage()),
+                sprintf('[EindSupplierSearch] Supplier ordering rejected: %s', get_class($exception)),
                 3
             );
 
-            $message = _PS_MODE_DEV_
-                ? $exception->getMessage()
-                : $this->module->l('Unexpected error while adding the product to the cart.');
-
-            return $this->renderJson(false, $message);
+            return $this->renderJson(false, $this->orderingUnavailableMessage());
         }
     }
 
     /**
-     * Logs a failed offer resolution with enough context to diagnose it
-     * (requested supplier/row/order-code, failure category) without
-     * logging anything sensitive -- see
+     * Logs only the failure category, without raw client references or
+     * session details -- see
      * docs/development/offer-action-reference.md, "Logging".
      */
     private function logResolutionFailure(string $category, int $supplierId, $productReference, $orderCode): void
     {
-        \PrestaShopLogger::addLog(
-            sprintf(
-                '[EindSupplierSearch] Offer resolution failed: category=%s supplierId=%d row=%s orderCode=%s',
-                $category,
-                $supplierId,
-                (string) $productReference,
-                ($orderCode !== null && $orderCode !== '') ? (string) $orderCode : '-'
-            ),
-            2
-        );
+        \PrestaShopLogger::addLog('[EindSupplierSearch] Offer resolution rejected: ' . $category, 2);
     }
 
     private function denyInvalidRequest(): void
@@ -168,7 +110,7 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
 
         $token = Tools::getValue('token');
         $expected = Tools::getToken(false);
-        if (!$token || !$expected || !hash_equals($expected, $token)) {
+        if (!is_string($token) || !$token || !$expected || !hash_equals($expected, $token)) {
             $this->renderJson(false, $this->module->l('Invalid security token.'));
         }
     }
@@ -198,17 +140,8 @@ class EindsuppliersearchAddToCartModuleFrontController extends ModuleFrontContro
         die($json);
     }
 
-    private function resolveTaxRuleId(): int
+    private function orderingUnavailableMessage(): string
     {
-        $configured = (int) Configuration::get('EIND_SUPPLIERSEARCH_API_TAX_RULE');
-        if ($configured > 0) {
-            return $configured;
-        }
-
-        $fallback = (int) Db::getInstance()->getValue(
-            'SELECT id_tax_rules_group FROM ' . _DB_PREFIX_ . 'tax_rules_group WHERE active = 1 ORDER BY id_tax_rules_group ASC'
-        );
-
-        return $fallback > 0 ? $fallback : 0;
+        return $this->module->l('This supplier offer is not currently available for ordering. Please try another offer or contact us.');
     }
 }

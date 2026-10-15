@@ -233,13 +233,13 @@ class EindAddToCartFunctions
     }
 
 
-    // ---------------------------IN USE----------------------------------------
-    // Function to get product_id by supplier_reference -----------------------+
-    // Returns:   product id or false if not found
+    // Disabled legacy lookup: supplier reference cannot prove native ownership.
+    // Kept as an explicit failure for any stale caller; performs no query.
     function getIdBySupplierReference($supplierReference)
     {
-        $sql = 'SELECT id_product FROM ' . _DB_PREFIX_ . pSQL('product') . ' WHERE supplier_reference = \'' . pSQL($supplierReference) . '\'';
-        return Db::getInstance()->getValue($sql);
+        // Reference equality (even with supplier association) is not ownership.
+        // No current runtime caller may use this legacy resolution shortcut.
+        throw new \LogicException('Supplier-reference-only native resolution is disabled.');
     }
 
 

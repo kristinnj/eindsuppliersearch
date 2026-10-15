@@ -190,6 +190,8 @@
                                            increment/decrement button ids collision-free across every offer on
                                            the page. *}
                                         <form
+                                            method="post"
+                                            action="{$link->getModuleLink('eindsuppliersearch', 'addtocart')|escape:'html'}"
                                             class="eind-search-offer__add-form js-eind-add-to-cart-form"
                                             data-supplier-id="{$offer.action.reference.supplierBucketId|escape:'html'}"
                                             data-product-reference="{$offer.action.reference.sourceRowIndex|escape:'html'}"
@@ -212,7 +214,6 @@
                                             </div>
                                             <button
                                                 type="submit"
-                                                data-button-action="add-to-cart"
                                                 class="eind-search-offer__add-btn btn btn-primary btn-sm js-eind-add-to-cart-submit"
                                                 aria-label="{l s='Add %supplier% offer to cart' sprintf=['%supplier%' => $offer.supplierName] d='Modules.Eindsuppliersearch.Shop'}"
                                             >

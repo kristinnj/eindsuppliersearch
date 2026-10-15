@@ -74,98 +74,13 @@
             });
         }
 
-        function updateCartIndicators(quantity) {
-            if (typeof quantity === 'string') {
-                quantity = parseInt(quantity, 10);
-            }
-
-            if (!Number.isFinite(quantity)) {
-                quantity = null;
-            }
-
-            try {
-                if (typeof prestashop !== 'undefined' && typeof prestashop.emit === 'function') {
-                    prestashop.emit('updateCart', {
-                        reason: {
-                            linkAction: 'add-to-cart'
-                        },
-                        cart: {
-                            nbProducts: quantity
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to emit PrestaShop cart update:', error);
-            }
-
-            if (quantity === null) {
-                return;
-            }
-
-            document.querySelectorAll('.cart-products-count, [data-cart-count]').forEach(function (target) {
-                if (target.dataset && typeof target.dataset.cartCount !== 'undefined') {
-                    target.dataset.cartCount = String(quantity);
-                }
-                target.textContent = String(quantity);
-            });
-        }
-
-        function refreshMiniCart(reason) {
-            document.querySelectorAll('.blockcart').forEach(function (cartElement) {
-                var refreshUrl = cartElement.dataset ? cartElement.dataset.refreshUrl : null;
-                if (!refreshUrl) {
-                    return;
-                }
-
-                var payload = new URLSearchParams();
-                payload.append('action', 'refresh');
-                if (reason && reason.idProduct) {
-                    payload.append('id_product', reason.idProduct);
-                }
-                if (reason && reason.linkAction) {
-                    payload.append('link_action', reason.linkAction);
-                }
-
-                fetch(refreshUrl, {
-                    method: 'POST',
-                    body: payload,
-                    credentials: 'same-origin'
-                })
-                    .then(function (response) {
-                        if (!response.ok) {
-                            throw new Error('Failed to refresh cart');
-                        }
-                        return response.json();
-                    })
-                    .then(function (resp) {
-                        if (resp && resp.preview) {
-                            var wrapper = document.createElement('div');
-                            wrapper.innerHTML = resp.preview;
-                            var updatedCart = wrapper.querySelector('.blockcart');
-
-                            if (updatedCart && cartElement.parentNode) {
-                                cartElement.parentNode.replaceChild(updatedCart, cartElement);
-                            } else {
-                                cartElement.innerHTML = resp.preview;
-                            }
-                        }
-
-                        if (typeof prestashop !== 'undefined' && typeof prestashop.emit === 'function') {
-                            prestashop.emit('updatedCart', { reason: reason || {}, resp: resp || {} });
-                        }
-                    })
-                    .catch(function (error) {
-                        console.warn('Cart refresh failed:', error);
-                    });
-            });
-        }
-
         function addToCart(form) {
-            var url = typeof eindsuppliersearch_addToCartUrl !== 'undefined' ? eindsuppliersearch_addToCartUrl : null;
+            var url = form.getAttribute('action') ? form.action : null;
             var token = typeof eindsuppliersearch_addToCartToken !== 'undefined' ? eindsuppliersearch_addToCartToken : null;
 
             if (!url) {
-                console.error('Missing eindsuppliersearch_addToCartUrl');
+                console.error('Missing supplier ordering form action');
+                window.alert(eindsuppliersearch_orderingUnavailableMessage);
                 return;
             }
 
@@ -201,27 +116,21 @@
                         try {
                             return JSON.parse(text);
                         } catch (error) {
-                            throw new Error('Invalid add to cart response: ' + text);
+                            throw new Error('Invalid supplier ordering response.');
                         }
                     });
                 })
                 .then(function (data) {
-                    if (data && data.success) {
-                        if (typeof data.cart_quantity !== 'undefined') {
-                            updateCartIndicators(data.cart_quantity);
-                        }
-
-                        refreshMiniCart({
-                            linkAction: 'add-to-cart',
-                            idProduct: data.product_id || null
-                        });
-                    } else {
-                        console.error('Add to cart failed:', data && data.message ? data.message : data);
-                        window.alert((data && data.message) || 'Failed to add product to cart.');
+                    // Supplier ordering is deliberately contained. Never manufacture
+                    // a native cart event or a success confirmation for this response.
+                    if (!data || data.success !== false || typeof data.message !== 'string') {
+                        throw new Error('Unexpected supplier ordering response.');
                     }
+                    window.alert(data.message);
                 })
                 .catch(function (error) {
-                    console.error('Error adding to cart:', error);
+                    console.error('Error requesting supplier ordering.');
+                    window.alert(eindsuppliersearch_orderingUnavailableMessage);
                 })
                 .finally(function () {
                     if (submitButton) {

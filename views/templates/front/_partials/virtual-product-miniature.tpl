@@ -66,6 +66,8 @@
 
       <div class="{$componentName}__actions">
         <form
+          method="post"
+          action="{$link->getModuleLink('eindsuppliersearch', 'addtocart')|escape:'html'}"
           class="{$componentName}__form js-eind-add-to-cart-form"
           data-supplier-id="{$product.eind_supplier_id}"
           data-product-reference="{$product.eind_product_key}"
@@ -85,7 +87,6 @@
 
           <button
             type="submit"
-            data-button-action="add-to-cart"
             class="{$componentName}__add btn btn-primary btn-square-icon js-eind-add-to-cart-submit"
             aria-label="{l s='Add to cart %product_name%' sprintf=['%product_name%' => $product.name] d='Shop.Theme.Actions'}"
             title="{l s='Add to cart %product_name%' sprintf=['%product_name%' => $product.name] d='Shop.Theme.Actions'}"

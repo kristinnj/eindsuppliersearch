@@ -171,7 +171,9 @@
                             {/if}
                         {/if}
 
-                        <form class="js-eind-add-to-cart-form d-flex align-items-center gap-2 mt-3"
+                        <form method="post"
+                            action="{$link->getModuleLink('eindsuppliersearch', 'addtocart')|escape:'html'}"
+                            class="js-eind-add-to-cart-form d-flex align-items-center gap-2 mt-3"
                             data-supplier-id="{$eind_supplier_id}"
                             data-product-reference="{$eind_product_key|escape:'html'}"
                             data-order-code="{$product.OrderCode|escape:'html'}"

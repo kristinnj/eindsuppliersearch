@@ -39,6 +39,7 @@ class EindsuppliersearchProductViewModuleFrontController extends ModuleFrontCont
                 'eindsuppliersearch_addToCartUrl' =>
                     $this->context->link->getModuleLink('eindsuppliersearch', 'addtocart', [], null, null, null, false, false),
                 'eindsuppliersearch_addToCartToken' => Tools::getToken(false),
+                'eindsuppliersearch_orderingUnavailableMessage' => $this->module->l('This supplier offer is not currently available for ordering. Please try another offer or contact us.'),
             ]);
         }
 

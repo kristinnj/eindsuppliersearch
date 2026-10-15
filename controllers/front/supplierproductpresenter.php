@@ -15,11 +15,9 @@ require_once _PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addt
  * so grid cards render with the theme's real product-miniature markup instead of
  * bespoke module CSS.
  *
- * Products already present locally (matched by supplier_reference) are presented
- * from the real Product row (eind_virtual = false: native PrestaShop card,
- * native cart form, real product page link).
- *
- * Everything else is presented from the raw supplier data with a synthetic
+ * Supplier references never authorize promotion to a native product/card.
+ * Until trusted ownership and commerce integration exists, every supplier offer
+ * is presented with a synthetic
  * negative placeholder id (eind_virtual = true), because core's image lookup
  * (ProductLazyArray::fillImages()) unconditionally re-queries the `image` table
  * by id_product and would otherwise wipe out any supplier image URL passed in
@@ -29,9 +27,6 @@ require_once _PS_ROOT_DIR_ . '/modules/eindsuppliersearch/controllers/front/addt
  */
 class EindSupplierProductPresenter
 {
-    /** @var EindAddToCartFunctions */
-    private $cartHelper;
-
     /** @var ProductListingPresenter */
     private $presenter;
 
@@ -40,8 +35,6 @@ class EindSupplierProductPresenter
 
     public function __construct()
     {
-        $this->cartHelper = new EindAddToCartFunctions();
-
         $context = Context::getContext();
         $this->presenter = new ProductListingPresenter(
             new ImageRetriever($context->link),
@@ -67,20 +60,6 @@ class EindSupplierProductPresenter
     public function present(array $standardProduct, int $supplierId, int $productKey)
     {
         $orderCode = (string) ($standardProduct['OrderCode'] ?? '');
-        $existingProductId = $orderCode !== '' ? (int) $this->cartHelper->getIdBySupplierReference($orderCode) : 0;
-
-        if ($existingProductId > 0) {
-            $raw = $this->buildRawArrayFromLocalProduct($existingProductId);
-            if ($raw !== null) {
-                $presented = $this->presenter->present($this->settings, $raw, Context::getContext()->language);
-                $presented['eind_virtual'] = false;
-
-                return $presented;
-            }
-            // Fall through to the virtual presentation if the matched local product
-            // turned out to be invalid/deleted between the reference lookup and here.
-        }
-
         $placeholderId = 0 - (($supplierId * 1000000) + $productKey + 1);
         $raw = $this->buildRawArrayFromStandardProduct($standardProduct, $supplierId, $placeholderId);
         $presented = $this->presenter->present($this->settings, $raw, Context::getContext()->language);
@@ -105,49 +84,6 @@ class EindSupplierProductPresenter
         $presented['eind_order_multiples'] = $this->toPositiveInt($standardProduct['OrderMultiples'] ?? null, 1);
 
         return $presented;
-    }
-
-    private function buildRawArrayFromLocalProduct(int $idProduct): ?array
-    {
-        $context = Context::getContext();
-        $idLang = (int) $context->language->id;
-        $product = new Product($idProduct, false, $idLang);
-
-        if (!Validate::isLoadedObject($product)) {
-            return null;
-        }
-
-        $price = $this->convertToCurrentCurrency((float) $product->price);
-
-        return [
-            'id_product' => (int) $product->id,
-            'id_product_attribute' => 0,
-            'name' => $product->name,
-            'price' => $price,
-            'id_image' => null,
-            'link_rewrite' => $product->link_rewrite,
-            'id_supplier' => (int) $product->id_supplier,
-            'id_manufacturer' => (int) $product->id_manufacturer,
-            'id_category_default' => (int) $product->id_category_default,
-            'id_shop_default' => (int) $product->id_shop_default,
-            'id_tax_rules_group' => (int) $product->id_tax_rules_group,
-            'reference' => $product->reference,
-            'supplier_reference' => $product->supplier_reference,
-            'description_short' => $product->description_short,
-            'description' => $product->description,
-            'low_stock_threshold' => $product->low_stock_threshold,
-            'product_type' => $product->product_type ?: 'standard',
-            'active' => (int) $product->active,
-            'visibility' => $product->visibility,
-            'quantity' => (int) $product->quantity,
-            'out_of_stock' => (int) $product->out_of_stock,
-            'customizable' => (int) $product->customizable,
-            'pack' => 0,
-            'virtual' => (int) $product->is_virtual,
-            'available_for_order' => (int) $product->available_for_order,
-            'show_price' => true,
-            'minimal_quantity' => 1,
-        ] + $this->pricingDefaults($price);
     }
 
     /**

@@ -331,6 +331,7 @@ class EindsuppliersearchSearchResultsModuleFrontController extends ModuleFrontCo
             'eindsuppliersearch_addToCartUrl' =>
                 $this->context->link->getModuleLink('eindsuppliersearch', 'addtocart', [], null, null, null, false, false),
             'eindsuppliersearch_addToCartToken' => Tools::getToken(false),
+            'eindsuppliersearch_orderingUnavailableMessage' => $this->module->l('This supplier offer is not currently available for ordering. Please try another offer or contact us.'),
         ]);
 
         $this->context->smarty->assign([
