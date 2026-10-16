@@ -29,10 +29,13 @@ final class ModuleLifecycleTest extends TestCase
     {
         $module = new class extends \Eindsuppliersearch {
             public int $schemaCalls = 0;
+            public int $m1Calls = 0;
+            public function installEvidenceM1Schema(): bool { ++$this->m1Calls; return true; }
             public function installOfferBindingSchema(): bool { ++$this->schemaCalls; return true; }
         };
         self::assertTrue($module->install());
         self::assertSame(1, $module->schemaCalls);
+        self::assertSame(1, $module->m1Calls);
         self::assertCount(2, \Db::$statements);
     }
 
@@ -67,10 +70,24 @@ final class ModuleLifecycleTest extends TestCase
     {
         $module = new \Eindsuppliersearch();
         $xml = simplexml_load_file(dirname(__DIR__, 3) . '/config.xml');
-        self::assertSame('1.1.0', $module->version);
+        self::assertSame('1.2.0', $module->version);
         self::assertSame($module->version, (string) $xml->version);
         self::assertFileExists(dirname(__DIR__, 3) . '/upgrade/upgrade-' . $module->version . '.php');
-        require dirname(__DIR__, 3) . '/upgrade/upgrade-1.1.0.php';
+        require dirname(__DIR__, 3) . '/upgrade/upgrade-1.2.0.php';
         self::assertTrue(function_exists('upgrade_module_' . str_replace('.', '_', $module->version)));
     }
+    public function testM1UpgradeDelegatesOnlyM1AndFailureStopsFreshInstall(): void
+    {
+        require dirname(__DIR__, 3) . '/upgrade/upgrade-1.2.0.php';
+        $module = new class extends \Eindsuppliersearch {
+            public int $calls = 0;
+            public function installOfferBindingSchema(): bool { return true; }
+            public function installEvidenceM1Schema(): bool { ++$this->calls; return false; }
+        };
+        self::assertFalse(upgrade_module_1_2_0($module));
+        self::assertFalse($module->install());
+        self::assertSame(2, $module->calls);
+        self::assertSame([], \Db::$statements);
+    }
+
 }

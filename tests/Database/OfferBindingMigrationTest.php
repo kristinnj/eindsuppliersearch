@@ -238,7 +238,7 @@ final class OfferBindingMigrationTest extends TestCase
             $module = new \Eindsuppliersearch();
             self::assertTrue(upgrade_module_1_1_0($module));
             self::assertTrue(upgrade_module_1_1_0($module));
-            self::assertSame('1.1.0', $module->version);
+            self::assertSame('1.2.0', $module->version);
             self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM `test_eind_offer_binding`')->fetchColumn());
             $this->mutate('ALTER TABLE `test_eind_offer_binding` DROP CONSTRAINT ck_eob_hash');
             self::assertFalse(upgrade_module_1_1_0($module));

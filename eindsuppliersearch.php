@@ -61,7 +61,7 @@ class Eindsuppliersearch extends Module
     {
         $this->name = 'eindsuppliersearch';
         $this->tab = 'front_office_features';
-        $this->version = '1.1.0';
+        $this->version = '1.2.0';
         $this->author = 'Kristinn Johannesson';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -81,6 +81,7 @@ class Eindsuppliersearch extends Module
     public function install()
     {
         return $this->installOfferBindingSchema() &&
+            $this->installEvidenceM1Schema() &&
             $this->installListDb() &&
             $this->installSupplierDb() &&
             parent::install() &&
@@ -105,6 +106,18 @@ class Eindsuppliersearch extends Module
             // Do not expose database exceptions, connection details or payloads.
             $this->_errors[] = $this->l('Offer binding schema installation or verification failed. Existing records were preserved.');
 
+            return false;
+        }
+    }
+
+    /** M1 only; requires explicit dedicated migration credentials and metadata prerequisites. */
+    public function installEvidenceM1Schema(): bool
+    {
+        try {
+            \EindSupplierSearch\Infrastructure\Database\M1Migration::run(__DIR__);
+            return true;
+        } catch (\Throwable $error) {
+            $this->_errors[] = $this->l('M1 evidence schema verification or installation failed. Retained structures require independent verification.');
             return false;
         }
     }
@@ -169,7 +182,7 @@ class Eindsuppliersearch extends Module
 
     public function uninstall()
     {
-        // Ownership registry records intentionally survive uninstall and reinstall.
+        // Ownership and M1 auxiliary evidence intentionally survive uninstall/reinstall.
         // Never pass OfferBindingSchema::TABLE to uninstallDb().
         return parent::uninstall() &&
             $this->uninstallDb($this->list_table) &&

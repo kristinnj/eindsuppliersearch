@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vendor-dev/phpunit/phpunit/phpunit.xsd" bootstrap="tests/M1Database/bootstrap.php" colors="true">
+  <testsuites><testsuite name="OwnedM1Database"><directory>tests/M1Database</directory></testsuite></testsuites>
+</phpunit>
