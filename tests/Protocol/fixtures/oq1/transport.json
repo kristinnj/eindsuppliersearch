@@ -1,0 +1,1 @@
+{"account_validation_profile_id":"fixture-none","authentication":"LOCAL_FIXTURE","connect_timeout_s":"3","destination_policy_id":"fixture-only","endpoint_origin":"fixture-local","endpoint_path":"none","max_offers":"100","max_response_bytes":"4194304","method":"LOCAL_READ","profile_id":"fixture-local-1","profile_version":"1","total_timeout_s":"10"}
